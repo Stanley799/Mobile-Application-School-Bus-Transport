@@ -90,4 +90,45 @@ class TripRepositoryImpl @Inject constructor(
             Result.failure(Exception("Failed to mark attendance: ${e.message}", e))
         }
     }
+    /**
+     * Submit parent feedback for a trip.
+     */
+    override suspend fun submitTripFeedback(tripId: String, rating: Int, comment: String?, studentId: Int?): Result<Unit> {
+        return try {
+            val response = apiService.submitTripFeedback(
+                tripId = tripId,
+                request = com.example.schoolbustransport.data.network.dto.TripFeedbackRequest(
+                    rating = rating,
+                    comment = comment,
+                    studentId = studentId
+                )
+            )
+            if (response.isSuccessful) {
+                Result.success(Unit)
+            } else {
+                val errorBody = response.errorBody()?.string() ?: "Unknown error"
+                Result.failure(Exception("API Error (${response.code()}): $errorBody"))
+            }
+        } catch (e: Exception) {
+            Result.failure(Exception("Failed to submit feedback: ${e.message}", e))
+        }
+    }
+
+    /**
+     * Get all feedback for a trip.
+     */
+    override fun getTripFeedback(tripId: String) = flow {
+        try {
+            val response = apiService.getTripFeedback(tripId)
+            if (response.isSuccessful && response.body() != null) {
+                val feedbacks = response.body()!!.map { it.toDomain() }
+                emit(feedbacks)
+            } else {
+                val errorBody = response.errorBody()?.string() ?: "Unknown error"
+                throw Exception("API Error (${response.code()}): $errorBody")
+            }
+        } catch (e: Exception) {
+            throw Exception("Failed to fetch trip feedback: ${e.message}", e)
+        }
+    }
 }

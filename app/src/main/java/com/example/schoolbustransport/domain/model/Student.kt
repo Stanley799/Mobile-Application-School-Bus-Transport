@@ -8,5 +8,15 @@ data class Student(
     val name: String,
     val grade: Int,
     val school: String,
-    val parentId: String
+    val parentId: String,
+
+    /**
+     * Latitude of the student's pickup location. Nullable if not set.
+     */
+    val pickupLat: Double? = null,
+
+    /**
+     * Longitude of the student's pickup location. Nullable if not set.
+     */
+    val pickupLng: Double? = null
 )

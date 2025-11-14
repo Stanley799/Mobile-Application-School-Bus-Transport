@@ -41,6 +41,8 @@ function socketHandler(io, prisma) {
     // Event listener for a new client connection
     io.on('connection', async (socket) => {
         console.log(`🔌 A user connected: ${socket.id} (UserId: ${socket.userId}, Role: ${socket.userRole})`);
+        // Join a personal room for direct messaging
+        socket.join(`user-${socket.userId}`);
 
         // Listener for when a client wants to join a trip-specific room
         socket.on('join-trip', async (tripId) => {
@@ -178,6 +180,21 @@ function socketHandler(io, prisma) {
         // Listener for when a client disconnects
         socket.on('disconnect', () => {
             console.log(`👋 A user disconnected: ${socket.id}`);
+            // Attach io instance to req for controllers to use
+            io.use((socket, next) => {
+                socket.request.io = io;
+                next();
+            });
+            // Attach io to req in REST middleware (Express)
+            if (io.httpServer && io.httpServer.listeners) {
+                const expressApp = io.httpServer.listeners('request')[0];
+                if (expressApp) {
+                    expressApp.use((req, res, next) => {
+                        req.io = io;
+                        next();
+                    });
+                }
+            }
         });
     });
 }

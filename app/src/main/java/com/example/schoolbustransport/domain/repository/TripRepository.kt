@@ -12,4 +12,8 @@ interface TripRepository {
     suspend fun startTrip(tripId: String): Result<Trip>
     suspend fun endTrip(tripId: String): Result<Trip>
     suspend fun markAttendance(tripId: String, studentId: String, status: String): Result<Unit>
+
+    // --- Trip Feedback ---
+    suspend fun submitTripFeedback(tripId: String, rating: Int, comment: String?, studentId: Int? = null): Result<Unit>
+    fun getTripFeedback(tripId: String): Flow<List<com.example.schoolbustransport.domain.model.TripFeedback>>
 }

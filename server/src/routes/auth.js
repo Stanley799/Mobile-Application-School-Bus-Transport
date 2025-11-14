@@ -23,4 +23,11 @@ router.post('/login', authController.login);
 // POST /api/auth/register
 router.post('/register', authController.register);
 
+
+// Password recovery endpoints
+// POST /api/auth/request-password-reset
+router.post('/request-password-reset', authController.requestPasswordReset);
+// POST /api/auth/reset-password
+router.post('/reset-password', authController.resetPassword);
+
 module.exports = router;

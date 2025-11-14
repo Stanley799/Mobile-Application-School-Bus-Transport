@@ -54,7 +54,7 @@ fun NewMessageScreen(navController: NavController, vm: MessagesViewModel = hiltV
                             navController.navigate("chat/${user.id}")
                         }
                     )
-                    Divider()
+                    HorizontalDivider()
                 }
             }
         }

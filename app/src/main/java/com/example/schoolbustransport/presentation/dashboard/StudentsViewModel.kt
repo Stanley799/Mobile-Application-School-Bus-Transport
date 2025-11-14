@@ -17,6 +17,51 @@ import javax.inject.Inject
  */
 @HiltViewModel
 class StudentsViewModel @Inject constructor(
+		fun updateStudent(id: Int, firstName: String?, lastName: String?, grade: String?, stream: String?) {
+			viewModelScope.launch {
+				_isLoading.value = true
+				_error.value = null
+				try {
+					val resp = api.updateStudent(
+						id.toString(),
+						com.example.schoolbustransport.data.network.dto.UpdateStudentRequest(
+							firstName = firstName,
+							lastName = lastName,
+							grade = grade,
+							stream = stream
+						)
+					)
+					if (resp.isSuccessful) {
+						loadMyStudents()
+					} else {
+						_error.value = resp.errorBody()?.string() ?: "Failed to update student"
+					}
+				} catch (e: Exception) {
+					_error.value = e.message
+				} finally {
+					_isLoading.value = false
+				}
+			}
+		}
+
+		fun deleteStudent(id: Int) {
+			viewModelScope.launch {
+				_isLoading.value = true
+				_error.value = null
+				try {
+					val resp = api.deleteStudent(id.toString())
+					if (resp.isSuccessful) {
+						loadMyStudents()
+					} else {
+						_error.value = resp.errorBody()?.string() ?: "Failed to delete student"
+					}
+				} catch (e: Exception) {
+					_error.value = e.message
+				} finally {
+					_isLoading.value = false
+				}
+			}
+		}
 	private val api: ApiService
 ) : ViewModel() {
 

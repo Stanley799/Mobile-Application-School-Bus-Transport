@@ -6,7 +6,6 @@ import android.util.Log
 import com.google.firebase.FirebaseApp
 import com.google.firebase.analytics.FirebaseAnalytics
 import com.google.firebase.analytics.ktx.analytics
-import com.google.firebase.analytics.ktx.logEvent
 import com.google.firebase.ktx.Firebase
 import dagger.hilt.android.HiltAndroidApp
 import org.osmdroid.config.Configuration
@@ -52,26 +51,23 @@ class SchoolBusApplication : Application() {
         Configuration.getInstance().userAgentValue = BuildConfig.APPLICATION_ID
 
         // Initialize Firebase SDK
-        // This must be called before using any Firebase services
         FirebaseApp.initializeApp(this)
 
         // Initialize Firebase Analytics using KTX extensions
-        // This provides a more idiomatic Kotlin API
         analytics = Firebase.analytics
 
         // Enable Analytics collection in debug builds
-        // In production, analytics collection follows the user's consent settings
         if (BuildConfig.DEBUG) {
             analytics.setAnalyticsCollectionEnabled(true)
         }
 
-        // Log app opened event with metadata
-        // This helps track app usage and user engagement
-        analytics.logEvent(FirebaseAnalytics.Event.APP_OPEN) {
-            param(FirebaseAnalytics.Param.SUCCESS, 1L)
-            param("app_version", BuildConfig.VERSION_NAME)
-            param("timestamp", System.currentTimeMillis())
+        // Log app opened event with metadata using the modern KTX API
+        val bundle = Bundle().apply {
+            putLong(FirebaseAnalytics.Param.SUCCESS, 1L)
+            putString("app_version", BuildConfig.VERSION_NAME)
+            putLong("timestamp", System.currentTimeMillis())
         }
+        analytics.logEvent(FirebaseAnalytics.Event.APP_OPEN, bundle)
 
         Log.d(TAG, "App initialized - Firebase Analytics ready")
     }

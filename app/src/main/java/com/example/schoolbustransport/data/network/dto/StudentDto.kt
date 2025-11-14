@@ -10,7 +10,9 @@ data class StudentDto(
     val grade: String?,
     val stream: String?,
     @SerializedName("parent_id") val parentId: Int?,
-    val parent: ParentInfo?
+    val parent: ParentInfo?,
+    @SerializedName("pickup_latitude") val pickupLat: Double? = null,
+    @SerializedName("pickup_longitude") val pickupLng: Double? = null
 )
 
 data class ParentInfo(
@@ -27,12 +29,16 @@ data class CreateStudentRequest(
     val admission: Int,
     val grade: String? = null,
     val stream: String? = null,
-    @SerializedName("parentId") val parentId: Int? = null
+    @SerializedName("parentId") val parentId: Int? = null,
+    @SerializedName("pickupLatitude") val pickupLat: Double? = null,
+    @SerializedName("pickupLongitude") val pickupLng: Double? = null
 )
 
 data class UpdateStudentRequest(
     @SerializedName("studentFname") val firstName: String? = null,
     @SerializedName("studentLname") val lastName: String? = null,
     val grade: String? = null,
-    val stream: String? = null
+    val stream: String? = null,
+    @SerializedName("pickupLatitude") val pickupLat: Double? = null,
+    @SerializedName("pickupLongitude") val pickupLng: Double? = null
 )

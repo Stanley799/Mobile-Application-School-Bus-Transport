@@ -1,3 +1,35 @@
+/**
+ * Deletes a student. Only admins and the student's parent can delete.
+ */
+exports.deleteStudent = async (req, res) => {
+    const { id } = req.params;
+    const prisma = req.prisma;
+    const user = req.user;
+    try {
+        const studentIdInt = parseInt(id);
+        if (isNaN(studentIdInt)) {
+            return res.status(400).json({ error: 'Invalid student id' });
+        }
+        const student = await prisma.students.findUnique({ where: { id: studentIdInt } });
+        if (!student) {
+            return res.status(404).json({ error: 'Student not found' });
+        }
+        // Authorization check
+        if (user.role === 'PARENT') {
+            const parent = await prisma.parents.findUnique({ where: { user_id: user.userId } });
+            if (!parent || student.parent_id !== parent.id) {
+                return res.status(403).json({ error: 'Forbidden: You can only delete your own children' });
+            }
+        } else if (user.role !== 'ADMIN') {
+            return res.status(403).json({ error: 'Forbidden: Only admins and parents can delete students' });
+        }
+        await prisma.students.delete({ where: { id: studentIdInt } });
+        res.status(204).send();
+    } catch (error) {
+        console.error('Error deleting student:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+};
 
 // src/controllers/studentController.js
 
@@ -16,7 +48,7 @@
  * Creates a new student. Parents can register their children, admins can create any student.
  */
 exports.createStudent = async (req, res) => {
-    const { studentFname, studentLname, admission, grade, stream, parentId } = req.body;
+    const { studentFname, studentLname, admission, grade, stream, parentId, pickupLatitude, pickupLongitude } = req.body;
     const prisma = req.prisma;
     const user = req.user;
 
@@ -59,7 +91,9 @@ exports.createStudent = async (req, res) => {
                 admission: parseInt(admission),
                 grade: grade || null,
                 stream: stream || null,
-                parent_id: finalParentId || null
+                parent_id: finalParentId || null,
+                pickup_latitude: pickupLatitude !== undefined ? pickupLatitude : null,
+                pickup_longitude: pickupLongitude !== undefined ? pickupLongitude : null
             },
             include: {
                 parent: {
@@ -113,6 +147,29 @@ exports.getStudents = async (req, res) => {
                 },
                 orderBy: {
                     student_fname: 'asc'
+                },
+                select: {
+                    id: true,
+                    student_fname: true,
+                    student_lname: true,
+                    admission: true,
+                    grade: true,
+                    stream: true,
+                    parent_id: true,
+                    pickup_latitude: true,
+                    pickup_longitude: true,
+                    parent: {
+                        include: {
+                            user: {
+                                select: {
+                                    id: true,
+                                    name: true,
+                                    email: true,
+                                    phone: true
+                                }
+                            }
+                        }
+                    }
                 }
             });
         } else if (user.role === 'PARENT') {
@@ -145,6 +202,29 @@ exports.getStudents = async (req, res) => {
                 },
                 orderBy: {
                     student_fname: 'asc'
+                },
+                select: {
+                    id: true,
+                    student_fname: true,
+                    student_lname: true,
+                    admission: true,
+                    grade: true,
+                    stream: true,
+                    parent_id: true,
+                    pickup_latitude: true,
+                    pickup_longitude: true,
+                    parent: {
+                        include: {
+                            user: {
+                                select: {
+                                    id: true,
+                                    name: true,
+                                    email: true,
+                                    phone: true
+                                }
+                            }
+                        }
+                    }
                 }
             });
         } else if (user.role === 'DRIVER') {
@@ -192,7 +272,7 @@ exports.getStudents = async (req, res) => {
                 });
             });
 
-            students = Array.from(studentMap.values());
+            students = Array.from(studentMap.values()); // Already includes pickup_latitude/longitude
         } else {
             return res.status(403).json({ error: 'Forbidden' });
         }
@@ -220,7 +300,16 @@ exports.getStudentById = async (req, res) => {
 
         const student = await prisma.students.findUnique({
             where: { id: studentIdInt },
-            include: {
+            select: {
+                id: true,
+                student_fname: true,
+                student_lname: true,
+                admission: true,
+                grade: true,
+                stream: true,
+                parent_id: true,
+                pickup_latitude: true,
+                pickup_longitude: true,
                 parent: {
                     include: {
                         user: {
@@ -285,7 +374,7 @@ exports.getStudentById = async (req, res) => {
  */
 exports.updateStudent = async (req, res) => {
     const { id } = req.params;
-    const { studentFname, studentLname, grade, stream } = req.body;
+    const { studentFname, studentLname, grade, stream, pickupLatitude, pickupLongitude } = req.body;
     const prisma = req.prisma;
     const user = req.user;
 
@@ -323,9 +412,20 @@ exports.updateStudent = async (req, res) => {
                 student_fname: studentFname || student.student_fname,
                 student_lname: studentLname || student.student_lname,
                 grade: grade !== undefined ? grade : student.grade,
-                stream: stream !== undefined ? stream : student.stream
+                stream: stream !== undefined ? stream : student.stream,
+                pickup_latitude: pickupLatitude !== undefined ? pickupLatitude : student.pickup_latitude,
+                pickup_longitude: pickupLongitude !== undefined ? pickupLongitude : student.pickup_longitude
             },
-            include: {
+            select: {
+                id: true,
+                student_fname: true,
+                student_lname: true,
+                admission: true,
+                grade: true,
+                stream: true,
+                parent_id: true,
+                pickup_latitude: true,
+                pickup_longitude: true,
                 parent: {
                     include: {
                         user: {

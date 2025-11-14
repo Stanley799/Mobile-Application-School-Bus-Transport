@@ -14,7 +14,9 @@ data class Trip(
     val bus: Bus,
     val route: Route,
     val driver: User,
-    val students: List<Student>
+    val students: List<Student>,
+    val departureTime: String?,
+    val arrivalTime: String?
 )
 
 /**

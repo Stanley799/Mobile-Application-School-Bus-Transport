@@ -1,3 +1,17 @@
+// Table: trip_feedback
+model trip_feedback {
+  id         Int      @id @default(autoincrement())
+  trip_id    Int
+  parent_id  Int
+  student_id Int?
+  rating     Int? // 1-5 stars or similar
+  comment    String?
+  created_at DateTime @default(now())
+  trip       trip     @relation(fields: [trip_id], references: [id], onDelete: Cascade)
+  parent     parents  @relation(fields: [parent_id], references: [id], onDelete: Cascade)
+  student    students? @relation(fields: [student_id], references: [id], onDelete: SetNull)
+  @@index([trip_id, parent_id])
+}
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
@@ -11,12 +25,12 @@ generator client {
 enum grade_enum {
   PP1
   PP2
-  "Grade 1"
-  "Grade 2"
-  "Grade 3"
-  "Grade 4"
-  "Grade 5"
-  "Grade 6"
+    Grade1
+    Grade2
+    Grade3
+    Grade4
+    Grade5
+    Grade6
 }
 
 // Table: users
@@ -28,6 +42,7 @@ model users {
   phone        String   @unique
   role         String
   loginstatus  Boolean? @default(false)
+  image        String?  // Profile image URL or path
   administrators administrators?
   drivers      drivers?
   parents      parents?
@@ -67,6 +82,7 @@ model parents {
   address    String?
   user       users  @relation(fields: [user_id], references: [id], onDelete: Cascade)
   students   students[]
+  feedback   trip_feedback[]
 }
 
 // Table: students
@@ -78,9 +94,12 @@ model students {
   admission     Int        @unique
   parent_id     Int?
   grade         grade_enum?
+  pickup_latitude  Float?
+  pickup_longitude Float?
   parent        parents?   @relation(fields: [parent_id], references: [id], onDelete: SetNull)
   attendance    attendance[]
   trip_attendance_list trip_attendance_list[]
+  feedback   trip_feedback[]
 }
 
 // Table: bus
@@ -130,6 +149,7 @@ model trip {
   instructions instructions[]
   report       report[]
   locations    trip_locations[]
+  feedback     trip_feedback[]
 }
 
 // Table: trip_attendance_list
@@ -156,11 +176,18 @@ model attendance {
 }
 
 // Table: message
+enum message_type_enum {
+  notification
+  chat
+  feedback
+}
+
 model message {
   message_id Int      @id @default(autoincrement())
   sender_id  Int
   receiver_id Int
   content    String
+  type       message_type_enum @default(notification)
   timestamp  DateTime @default(now())
   sender     users    @relation("sender", fields: [sender_id], references: [id], onDelete: Cascade)
   receiver   users    @relation("receiver", fields: [receiver_id], references: [id], onDelete: Cascade)

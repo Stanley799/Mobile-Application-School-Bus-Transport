@@ -57,7 +57,7 @@ exports.getAvailableRecipients = async (req, res) => {
  * Sends a message from the authenticated user to another user.
  */
 exports.sendMessage = async (req, res) => {
-    const { receiverId, content } = req.body;
+    const { receiverId, content, type } = req.body;
     const prisma = req.prisma;
     const user = req.user;
 
@@ -80,65 +80,58 @@ exports.sendMessage = async (req, res) => {
                 parents: true
             }
         });
-
         if (!receiver) {
             return res.status(404).json({ error: 'Receiver not found' });
         }
 
-        // Role-based authorization check
+        // Determine message type and enforce role logic
+        let messageType = type;
+        if (!messageType) {
+            // Default: notification for admin/driver, feedback for parent after trip, chat otherwise
+            if (user.role === 'ADMIN' || user.role === 'DRIVER') {
+                messageType = 'notification';
+            } else if (user.role === 'PARENT') {
+                messageType = 'feedback';
+            } else {
+                messageType = 'chat';
+            }
+        }
+
+        // Only admin/driver can send notification messages
+        if (messageType === 'notification') {
+            if (!(user.role === 'ADMIN' || user.role === 'DRIVER')) {
+                return res.status(403).json({ error: 'Only admin and driver can send notification messages' });
+            }
+        }
+        // Only parent can send feedback, and only after trip (enforce as needed)
+        // (Add trip status check here if feedback is tied to trip)
+
+        // Role-based authorization check (existing logic)
         if (user.role === 'ADMIN') {
             // Admins can message anyone
         } else if (user.role === 'DRIVER') {
-            // Drivers can message admins and parents of students on their active trips
             if (receiver.role === 'ADMIN') {
                 // Can message admin
             } else if (receiver.role === 'PARENT') {
-                // Get parent record
-                const parentRecord = await prisma.parents.findUnique({
-                    where: { user_id: receiverIdInt }
-                });
-
+                const parentRecord = await prisma.parents.findUnique({ where: { user_id: receiverIdInt } });
                 if (!parentRecord) {
                     return res.status(404).json({ error: 'Parent record not found' });
                 }
-
-                // Check if parent has children on driver's active trips
                 const activeTrip = await prisma.trip.findFirst({
                     where: {
-                        driver: {
-                            user_id: user.userId
-                        },
+                        driver: { user_id: user.userId },
                         status: 'IN_PROGRESS',
-                        trip_attendance_list: {
-                            some: {
-                                student: {
-                                    parent_id: parentRecord.id
-                                }
-                            }
-                        }
+                        trip_attendance_list: { some: { student: { parent_id: parentRecord.id } } }
                     }
                 });
-
                 if (!activeTrip) {
-                    // Also allow if there's a recent trip (within last 7 days)
                     const recentTrip = await prisma.trip.findFirst({
                         where: {
-                            driver: {
-                                user_id: user.userId
-                            },
-                            trip_date: {
-                                gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
-                            },
-                            trip_attendance_list: {
-                                some: {
-                                    student: {
-                                        parent_id: parentRecord.id
-                                    }
-                                }
-                            }
+                            driver: { user_id: user.userId },
+                            trip_date: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) },
+                            trip_attendance_list: { some: { student: { parent_id: parentRecord.id } } }
                         }
                     });
-
                     if (!recentTrip) {
                         return res.status(403).json({ error: 'Forbidden: You can only message parents of students on your trips' });
                     }
@@ -147,58 +140,28 @@ exports.sendMessage = async (req, res) => {
                 return res.status(403).json({ error: 'Forbidden: Drivers can only message admins and parents' });
             }
         } else if (user.role === 'PARENT') {
-            // Parents can message admins and drivers of trips their children are on
             if (receiver.role === 'ADMIN') {
                 // Can message admin
             } else if (receiver.role === 'DRIVER') {
-                // Get parent record
-                const parentRecord = await prisma.parents.findUnique({
-                    where: { user_id: user.userId }
-                });
-
+                const parentRecord = await prisma.parents.findUnique({ where: { user_id: user.userId } });
                 if (!parentRecord) {
                     return res.status(403).json({ error: 'Forbidden: Parent record not found' });
                 }
-
-                // Check if driver has an active or recent trip with parent's children
                 const activeTrip = await prisma.trip.findFirst({
                     where: {
-                        driver: {
-                            user_id: receiverIdInt
-                        },
-                        status: {
-                            in: ['IN_PROGRESS', 'SCHEDULED']
-                        },
-                        trip_attendance_list: {
-                            some: {
-                                student: {
-                                    parent_id: parentRecord.id
-                                }
-                            }
-                        }
+                        driver: { user_id: receiverIdInt },
+                        status: { in: ['IN_PROGRESS', 'SCHEDULED'] },
+                        trip_attendance_list: { some: { student: { parent_id: parentRecord.id } } }
                     }
                 });
-
                 if (!activeTrip) {
-                    // Also allow if there's a recent trip (within last 7 days)
                     const recentTrip = await prisma.trip.findFirst({
                         where: {
-                            driver: {
-                                user_id: receiverIdInt
-                            },
-                            trip_date: {
-                                gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
-                            },
-                            trip_attendance_list: {
-                                some: {
-                                    student: {
-                                        parent_id: parentRecord.id
-                                    }
-                                }
-                            }
+                            driver: { user_id: receiverIdInt },
+                            trip_date: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) },
+                            trip_attendance_list: { some: { student: { parent_id: parentRecord.id } } }
                         }
                     });
-
                     if (!recentTrip) {
                         return res.status(403).json({ error: 'Forbidden: You can only message drivers of trips your children are on' });
                     }
@@ -208,31 +171,29 @@ exports.sendMessage = async (req, res) => {
             }
         }
 
-        // Create message
+        // Create message with type
         const message = await prisma.message.create({
             data: {
                 sender_id: user.userId,
                 receiver_id: receiverIdInt,
-                content: content
+                content: content,
+                type: messageType
             },
             include: {
-                sender: {
-                    select: {
-                        id: true,
-                        name: true,
-                        role: true
-                    }
-                },
-                receiver: {
-                    select: {
-                        id: true,
-                        name: true,
-                        role: true
-                    }
-                }
+                sender: { select: { id: true, name: true, role: true } },
+                receiver: { select: { id: true, name: true, role: true } }
             }
         });
 
+        // Emit real-time message to both sender and receiver if connected
+        try {
+            if (req.io) {
+                req.io.to(`user-${user.userId}`).emit('message-broadcast', message);
+                req.io.to(`user-${receiverIdInt}`).emit('message-broadcast', message);
+            }
+        } catch (e) {
+            console.error('Socket emit error:', e);
+        }
         res.status(201).json(message);
     } catch (error) {
         console.error('Error sending message:', error);

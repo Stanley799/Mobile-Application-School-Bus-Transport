@@ -23,6 +23,34 @@ import javax.inject.Inject
  */
 @HiltViewModel
 class MessagesViewModel @Inject constructor(
+        // SocketManager for real-time events (should be injected or created with token)
+        private var socketManager: com.example.schoolbustransport.data.realtime.SocketManager? = null
+        // Track the current chat user for real-time updates
+        private var currentChatUserId: Int? = null
+        /**
+         * Call this to enable real-time message updates for the current user.
+         * Should be called after login/token is available.
+         */
+        fun initSocket(token: String, apiBaseUrl: String) {
+            if (socketManager == null) {
+                socketManager = com.example.schoolbustransport.data.realtime.SocketManager(apiBaseUrl, token)
+                socketManager?.connect()
+                // Listen for incoming messages
+                socketManager?.on("message-broadcast") { args ->
+                    if (args.isNotEmpty()) {
+                        val msgJson = args[0].toString()
+                        try {
+                            val gson = com.google.gson.Gson()
+                            val msg = gson.fromJson(msgJson, com.example.schoolbustransport.data.network.dto.MessageDto::class.java)
+                            // Only append if this message is for the current chat
+                            if (msg.senderId == currentChatUserId || msg.receiverId == currentChatUserId) {
+                                _messages.value = _messages.value + msg
+                            }
+                        } catch (_: Exception) {}
+                    }
+                }
+            }
+        }
     private val api: ApiService,
     private val sessionManager: SessionManager
 ) : ViewModel() {
@@ -73,6 +101,7 @@ class MessagesViewModel @Inject constructor(
     }
 
     fun loadMessages(otherUserId: Int) {
+        currentChatUserId = otherUserId
         viewModelScope.launch {
             _isLoading.value = true
             _error.value = null
@@ -96,9 +125,14 @@ class MessagesViewModel @Inject constructor(
             _isLoading.value = true
             _error.value = null
             try {
-                val resp = api.sendMessage(SendMessageRequest(receiverId = otherUserId, content = text))
+                val myRole = sessionManager.userRoleFlow.stateIn(viewModelScope).value
+                val type = when (myRole) {
+                    "ADMIN", "DRIVER" -> "notification"
+                    "PARENT" -> "feedback"
+                    else -> "chat"
+                }
+                val resp = api.sendMessage(SendMessageRequest(receiverId = otherUserId, content = text, type = type))
                 if (resp.isSuccessful) {
-                    // Re-fetch the thread to include the new message at the bottom
                     loadMessages(otherUserId)
                     onSuccess()
                 } else {

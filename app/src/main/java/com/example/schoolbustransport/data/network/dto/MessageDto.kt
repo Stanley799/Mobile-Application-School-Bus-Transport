@@ -7,6 +7,7 @@ data class MessageDto(
     @SerializedName("sender_id") val senderId: Int,
     @SerializedName("receiver_id") val receiverId: Int,
     val content: String,
+    val type: String? = null,
     val timestamp: String,
     val sender: UserInfo?,
     val receiver: UserInfo?
@@ -20,7 +21,8 @@ data class UserInfo(
 
 data class SendMessageRequest(
     @SerializedName("receiverId") val receiverId: Int,
-    val content: String
+    val content: String,
+    val type: String? = null
 )
 
 data class ConversationDto(

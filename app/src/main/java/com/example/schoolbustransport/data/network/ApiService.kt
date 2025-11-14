@@ -28,6 +28,28 @@ import retrofit2.http.*
  */
 interface ApiService {
 
+    // --- Trip Feedback --- //
+
+    /**
+     * Submit parent feedback for a trip.
+     * @param tripId Trip ID
+     * @param request TripFeedbackRequest (rating, comment, studentId)
+     */
+    @POST("trips/{id}/feedback")
+    suspend fun submitTripFeedback(
+        @Path("id") tripId: String,
+        @Body request: TripFeedbackRequest
+    ): Response<TripFeedbackDto>
+
+    /**
+     * Get all feedback for a trip.
+     * @param tripId Trip ID
+     */
+    @GET("trips/{id}/feedback")
+    suspend fun getTripFeedback(
+        @Path("id") tripId: String
+    ): Response<List<TripFeedbackDto>>
+
     // --- Messaging: Available Recipients --- //
     @GET("messages/recipients")
     suspend fun getAvailableRecipients(): Response<List<UserLite>>

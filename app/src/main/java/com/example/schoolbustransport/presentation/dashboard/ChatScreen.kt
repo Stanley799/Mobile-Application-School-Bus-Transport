@@ -12,13 +12,15 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -26,13 +28,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import java.time.OffsetDateTime
+import java.time.format.DateTimeFormatter
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatScreen(navController: NavController, conversationId: String?, vm: MessagesViewModel = hiltViewModel()) {
-	var messageText by remember { mutableStateOf("") }
 	// Convert route argument to an Int user id for the backend
 	val otherId = conversationId?.toIntOrNull()
 
@@ -58,8 +63,8 @@ fun ChatScreen(navController: NavController, conversationId: String?, vm: Messag
 		},
 		bottomBar = {
 			MessageInput(onSendMessage = {
-				if (!it.isNullOrBlank() && otherId != null) {
-					vm.sendMessage(otherId, it) { messageText = "" }
+				if (otherId != null) {
+					vm.sendMessage(otherId, it) {}
 				}
 			})
 		}
@@ -75,24 +80,26 @@ fun ChatScreen(navController: NavController, conversationId: String?, vm: Messag
 			) {
 				items(messages.reversed()) { m ->
 					val isFromMe = m.senderId == myUserId
-					val avatarColor = if (isFromMe) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary
 					Row(
-						modifier = Modifier.fillMaxWidth(),
-						horizontalArrangement = if (isFromMe) Arrangement.End else Arrangement.Start
+						modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+						horizontalArrangement = if (isFromMe) Arrangement.End else Arrangement.Start,
+						verticalAlignment = Alignment.Bottom
 					) {
 						if (!isFromMe) {
-							AvatarBubble(m.sender?.name ?: "", avatarColor)
+							AvatarBubble(m.sender?.name ?: "", MaterialTheme.colorScheme.secondary)
+							Spacer(modifier = Modifier.width(6.dp))
 						}
-						Column(horizontalAlignment = if (isFromMe) Alignment.End else Alignment.Start) {
-							MessageBubble(
-								text = m.content,
-								isFromMe = isFromMe,
-								timestamp = m.timestamp,
-								senderName = m.sender?.name ?: "Me"
-							)
-						}
+						MessageBubble(
+							text = m.content,
+							isFromMe = isFromMe,
+							timestamp = m.timestamp,
+							senderName = m.sender?.name ?: "Me",
+							isLast = m == messages.lastOrNull(),
+							status = if (isFromMe) "Sent" else "Received"
+						)
 						if (isFromMe) {
-							AvatarBubble("Me", avatarColor)
+							Spacer(modifier = Modifier.width(6.dp))
+							AvatarBubble("Me", MaterialTheme.colorScheme.primary)
 						}
 					}
 				}
@@ -102,20 +109,62 @@ fun ChatScreen(navController: NavController, conversationId: String?, vm: Messag
 }
 
 @Composable
-private fun MessageBubble(text: String, isFromMe: Boolean, timestamp: String, senderName: String) {
+private fun MessageBubble(
+	text: String,
+	isFromMe: Boolean,
+	timestamp: String,
+	senderName: String,
+	isLast: Boolean = false,
+	status: String = ""
+) {
 	val backgroundColor = if (isFromMe) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant
 	val textColor = if (isFromMe) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
+	val time = try {
+		OffsetDateTime.parse(timestamp).format(DateTimeFormatter.ofPattern("HH:mm"))
+	} catch (_: Exception) { timestamp }
+
 	Column(
 		modifier = Modifier
 			.widthIn(max = 320.dp)
-			.clip(RoundedCornerShape(16.dp))
+			.clip(RoundedCornerShape(18.dp))
 			.background(backgroundColor)
-			.padding(12.dp)
+			.padding(horizontal = 14.dp, vertical = 10.dp)
 	) {
-		if (!isFromMe) Text(senderName, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.secondary)
-		Text(text, color = textColor, style = MaterialTheme.typography.bodyLarge)
-		Spacer(modifier = Modifier.height(4.dp))
-		Text(timestamp, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline, modifier = Modifier.align(Alignment.End))
+		if (!isFromMe) {
+			Text(
+				text = senderName,
+				style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+				color = MaterialTheme.colorScheme.primary,
+				modifier = Modifier.padding(bottom = 2.dp)
+			)
+		}
+		Text(
+			text,
+			style = MaterialTheme.typography.bodyLarge,
+			color = textColor,
+			modifier = Modifier.padding(bottom = 2.dp)
+		)
+		Row(
+			modifier = Modifier.fillMaxWidth(),
+			horizontalArrangement = Arrangement.SpaceBetween,
+			verticalAlignment = Alignment.CenterVertically
+		) {
+			Text(
+				text = time,
+				style = MaterialTheme.typography.labelSmall,
+				color = textColor.copy(alpha = 0.7f),
+				textAlign = TextAlign.Start
+			)
+			if (isFromMe && isLast) {
+				Text(
+					text = status,
+					style = MaterialTheme.typography.labelSmall,
+					color = MaterialTheme.colorScheme.secondary,
+					textAlign = TextAlign.End,
+					modifier = Modifier.padding(start = 8.dp)
+				)
+			}
+		}
 	}
 }
 
@@ -124,7 +173,7 @@ private fun AvatarBubble(name: String, color: Color) {
 	Box(
 		modifier = Modifier
 			.size(32.dp)
-			.clip(RoundedCornerShape(50))
+			.clip(CircleShape) // Using CircleShape for a perfectly round avatar
 			.background(color),
 		contentAlignment = Alignment.Center
 	) {
@@ -136,11 +185,12 @@ private fun AvatarBubble(name: String, color: Color) {
 	}
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun MessageInput(onSendMessage: (String) -> Unit) {
 	var text by remember { mutableStateOf("") }
 
-	Card(modifier = Modifier.fillMaxWidth().padding(8.dp), elevation = CardDefaults.cardElevation(8.dp)) {
+	Card(modifier = Modifier.fillMaxWidth().padding(8.dp), elevation = CardDefaults.cardElevation(4.dp)) {
 		Row(
 			modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
 			verticalAlignment = Alignment.CenterVertically
@@ -150,7 +200,13 @@ private fun MessageInput(onSendMessage: (String) -> Unit) {
 				onValueChange = { text = it },
 				modifier = Modifier.weight(1f),
 				placeholder = { Text("Type a message...") },
-				colors = TextFieldDefaults.colors(focusedIndicatorColor = Color.Transparent, unfocusedIndicatorColor = Color.Transparent)
+				colors = TextFieldDefaults.colors(
+					focusedContainerColor = Color.Transparent,
+					unfocusedContainerColor = Color.Transparent,
+					disabledContainerColor = Color.Transparent,
+					focusedIndicatorColor = Color.Transparent,
+					unfocusedIndicatorColor = Color.Transparent
+				)
 			)
 			IconButton(onClick = {
 				if (text.isNotBlank()) {
@@ -158,7 +214,7 @@ private fun MessageInput(onSendMessage: (String) -> Unit) {
 					text = ""
 				}
 			}) {
-				Icon(Icons.Default.Send, contentDescription = "Send Message")
+				Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send Message")
 			}
 		}
 	}

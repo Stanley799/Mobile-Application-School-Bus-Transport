@@ -85,7 +85,9 @@ async function main() {
 			grade: grade_enum["Grade 5"],
 			stream: null,
 			admission: 1001,
-			parent_id: parent.id
+			parent_id: parent.id,
+			pickup_latitude: -1.2921, // Example: Nairobi
+			pickup_longitude: 36.8219
 		}
 	});
 	const student2 = await prisma.students.create({
@@ -95,7 +97,9 @@ async function main() {
 			grade: grade_enum["Grade 3"],
 			stream: null,
 			admission: 1002,
-			parent_id: parent.id
+			parent_id: parent.id,
+			pickup_latitude: -1.3000, // Example: Nearby location
+			pickup_longitude: 36.8000
 		}
 	});
 

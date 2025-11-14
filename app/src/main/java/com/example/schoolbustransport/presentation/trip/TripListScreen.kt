@@ -92,7 +92,8 @@ fun TripListScreen(
 									onDownloadReport = {
 										// Download the PDF report. For now we write to app files dir; can be moved to Downloads with SAF
 										downloadReport(scope, context, trip.id)
-									}
+									},
+									navController = navController // Pass navController to TripRow
 								)
 							}
 						}
@@ -131,7 +132,8 @@ private fun TripRow(
 	onEnd: () -> Unit,
 	onOpenMap: () -> Unit,
 	onOpenAttendance: () -> Unit,
-	onDownloadReport: () -> Unit
+	onDownloadReport: () -> Unit,
+	navController: NavController? = null // Pass navController for navigation
 ) {
 	Card(
 		modifier = Modifier.fillMaxWidth(),
@@ -152,6 +154,9 @@ private fun TripRow(
 				TextButton(onClick = onOpenMap) { Text("Open Map") }
 				TextButton(onClick = onOpenAttendance) { Text("Attendance") }
 				TextButton(onClick = onDownloadReport) { Text("Download Report") }
+				if (trip.status.name == "COMPLETED" && navController != null) {
+					TextButton(onClick = { navController.navigate("trip_report/${trip.id}") }) { Text("View Report") }
+				}
 			}
 		}
 	}

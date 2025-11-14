@@ -1,3 +1,101 @@
+/**
+ * Submits parent feedback for a trip.
+ * Only parents whose child was on the trip can submit feedback.
+ * Body: { rating: 1-5, comment: string, studentId?: number }
+ */
+exports.submitTripFeedback = async (req, res) => {
+    const prisma = req.prisma;
+    const user = req.user;
+    const tripId = Number.parseInt(req.params.id, 10);
+    const { rating, comment, studentId } = req.body;
+    if (Number.isNaN(tripId)) {
+        return res.status(400).json({ error: 'Invalid trip id' });
+    }
+    if (!rating || rating < 1 || rating > 5) {
+        return res.status(400).json({ error: 'Rating must be 1-5' });
+    }
+    try {
+        // Find parent record
+        const parent = await prisma.parents.findUnique({ where: { user_id: user.userId } });
+        if (!parent) {
+            return res.status(403).json({ error: 'Parent record not found' });
+        }
+        // Check if parent's child was on the trip
+        const trip = await prisma.trip.findUnique({
+            where: { id: tripId },
+            include: { trip_attendance_list: { include: { student: true } } }
+        });
+        if (!trip) {
+            return res.status(404).json({ error: 'Trip not found' });
+        }
+        const studentIds = trip.trip_attendance_list.map(tal => tal.student.parent_id === parent.id ? tal.student.id : null).filter(Boolean);
+        if (studentIds.length === 0) {
+            return res.status(403).json({ error: 'You do not have a child on this trip' });
+        }
+        // If studentId is provided, check it's valid
+        let feedbackStudentId = null;
+        if (studentId) {
+            if (!studentIds.includes(studentId)) {
+                return res.status(403).json({ error: 'Student is not your child on this trip' });
+            }
+            feedbackStudentId = studentId;
+        }
+        // Prevent duplicate feedback per parent/trip/student
+        const existing = await prisma.trip_feedback.findFirst({
+            where: { trip_id: tripId, parent_id: parent.id, student_id: feedbackStudentId }
+        });
+        if (existing) {
+            return res.status(409).json({ error: 'Feedback already submitted' });
+        }
+        const feedback = await prisma.trip_feedback.create({
+            data: {
+                trip_id: tripId,
+                parent_id: parent.id,
+                student_id: feedbackStudentId,
+                rating,
+                comment
+            }
+        });
+        res.status(201).json(feedback);
+    } catch (error) {
+        console.error('Error submitting feedback:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+};
+
+/**
+ * Gets all feedback for a trip. Admins/Drivers see all, parents see only their own.
+ */
+exports.getTripFeedback = async (req, res) => {
+    const prisma = req.prisma;
+    const user = req.user;
+    const tripId = Number.parseInt(req.params.id, 10);
+    if (Number.isNaN(tripId)) {
+        return res.status(400).json({ error: 'Invalid trip id' });
+    }
+    try {
+        let where = { trip_id: tripId };
+        if (user.role === 'PARENT') {
+            const parent = await prisma.parents.findUnique({ where: { user_id: user.userId } });
+            if (!parent) {
+                return res.status(403).json({ error: 'Parent record not found' });
+            }
+            where.parent_id = parent.id;
+        }
+        const feedbacks = await prisma.trip_feedback.findMany({
+            where,
+            include: {
+                parent: { select: { parent_fname: true, parent_lname: true } },
+                student: { select: { student_fname: true, student_lname: true } }
+            },
+            orderBy: { created_at: 'desc' }
+        });
+        res.status(200).json(feedbacks);
+    } catch (error) {
+        console.error('Error fetching feedback:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+};
 
 // src/controllers/tripController.js
 
@@ -75,7 +173,9 @@ exports.getAllTrips = async (req, res) => {
                                     id: true, 
                                     student_fname: true, 
                                     student_lname: true,
-                                    grade: true
+                                    grade: true,
+                                    pickup_latitude: true,
+                                    pickup_longitude: true
                                 } 
                             },
                         },
@@ -180,7 +280,20 @@ exports.getTripById = async (req, res) => {
                             user: { select: { phone: true, name: true } },
                         },
                     },
-                    trip_attendance_list: { include: { student: true } },
+                    trip_attendance_list: { 
+                        include: { 
+                            student: {
+                                select: {
+                                    id: true,
+                                    student_fname: true,
+                                    student_lname: true,
+                                    grade: true,
+                                    pickup_latitude: true,
+                                    pickup_longitude: true
+                                }
+                            }
+                        }
+                    },
                     attendance: true,
                 },
             });
@@ -202,7 +315,20 @@ exports.getTripById = async (req, res) => {
                             user: { select: { phone: true, name: true } },
                         },
                     },
-                    trip_attendance_list: { include: { student: true } },
+                    trip_attendance_list: { 
+                        include: { 
+                            student: {
+                                select: {
+                                    id: true,
+                                    student_fname: true,
+                                    student_lname: true,
+                                    grade: true,
+                                    pickup_latitude: true,
+                                    pickup_longitude: true
+                                }
+                            }
+                        }
+                    },
                     attendance: true,
                 },
             });
@@ -236,6 +362,14 @@ exports.getTripById = async (req, res) => {
                     trip_attendance_list: { 
                         include: { 
                             student: {
+                                select: {
+                                    id: true,
+                                    student_fname: true,
+                                    student_lname: true,
+                                    grade: true,
+                                    pickup_latitude: true,
+                                    pickup_longitude: true
+                                },
                                 where: {
                                     parent: {
                                         user_id: user.userId

@@ -26,6 +26,8 @@ fun AttendanceScreen(
 	}
 
 	val trip by tripViewModel.selectedTrip.collectAsState()
+	val tripState by tripViewModel.tripState.collectAsState()
+	var showReport by remember { mutableStateOf(false) }
 
 	Scaffold(
 		topBar = {
@@ -55,30 +57,53 @@ fun AttendanceScreen(
 					}
 				}
 				else -> {
-					LazyColumn(
-						modifier = Modifier.fillMaxSize().padding(16.dp),
-						verticalArrangement = Arrangement.spacedBy(12.dp)
-					) {
-						items(currentTrip.students) { student ->
-							Card(
-								modifier = Modifier.fillMaxWidth(),
-								elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+					Column(Modifier.fillMaxSize()) {
+						// --- Start/End Trip Controls ---
+						Row(
+							modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+							horizontalArrangement = Arrangement.SpaceBetween,
+							verticalAlignment = Alignment.CenterVertically
+						) {
+							Text("Trip: ${currentTrip.route.name}", style = MaterialTheme.typography.titleMedium)
+							when (currentTrip.status.name) {
+								"SCHEDULED" -> Button(onClick = { tripViewModel.startTrip(tripId) }) { Text("Start Trip") }
+								"IN_PROGRESS" -> Button(onClick = { tripViewModel.endTrip(tripId) }) { Text("End Trip") }
+								"COMPLETED" -> Button(onClick = { showReport = true }) { Text("View Report") }
+							}
+						}
+						// --- Attendance List ---
+						if (currentTrip.status.name == "IN_PROGRESS") {
+							LazyColumn(
+								modifier = Modifier.fillMaxSize().padding(16.dp),
+								verticalArrangement = Arrangement.spacedBy(12.dp)
 							) {
-								Row(
-									modifier = Modifier.fillMaxWidth().padding(12.dp),
-									horizontalArrangement = Arrangement.SpaceBetween,
-									verticalAlignment = Alignment.CenterVertically
-								) {
-									Text(student.name, style = MaterialTheme.typography.titleMedium)
-									Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-										Button(onClick = { tripViewModel.markAttendance(tripId, student.id, "PRESENT") }) {
-											Text("Present")
-										}
-										OutlinedButton(onClick = { tripViewModel.markAttendance(tripId, student.id, "ABSENT") }) {
-											Text("Absent")
+								items(currentTrip.students) { student ->
+									Card(
+										modifier = Modifier.fillMaxWidth(),
+										elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+									) {
+										Row(
+											modifier = Modifier.fillMaxWidth().padding(12.dp),
+											horizontalArrangement = Arrangement.SpaceBetween,
+											verticalAlignment = Alignment.CenterVertically
+										) {
+											Text(student.name, style = MaterialTheme.typography.titleMedium)
+											Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+												Button(onClick = { tripViewModel.markAttendance(tripId, student.id, "PRESENT") }) {
+													Text("Present")
+												}
+												OutlinedButton(onClick = { tripViewModel.markAttendance(tripId, student.id, "ABSENT") }) {
+													Text("Absent")
+												}
+											}
 										}
 									}
 								}
+							}
+						} else if (currentTrip.status.name == "COMPLETED") {
+							// Show trip summary/report button
+							if (showReport) {
+								TripReportScreen(tripId = tripId, navController = navController)
 							}
 						}
 					}

@@ -1,16 +1,22 @@
 package com.example.schoolbustransport.presentation.profile
 
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.example.schoolbustransport.domain.model.User
+import com.example.schoolbustransport.presentation.auth.AuthViewModel
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ProfileScreen(user: User) {
+fun ProfileScreen(authViewModel: AuthViewModel = hiltViewModel()) {
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
@@ -20,18 +26,16 @@ fun ProfileScreen(user: User) {
     ) { paddingValues ->
         Column(
             modifier = Modifier
-                .padding(paddingValues)
                 .fillMaxSize()
+                .padding(paddingValues)
                 .padding(24.dp),
-            verticalArrangement = Arrangement.spacedBy(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
         ) {
-            Text(text = user.name, style = MaterialTheme.typography.headlineMedium)
-            Text(text = user.role, style = MaterialTheme.typography.titleMedium)
-            Text(text = user.phone ?: "No phone", style = MaterialTheme.typography.bodyLarge)
-            // Add more profile fields/settings here
-            Button(onClick = { /* TODO: Implement logout or edit profile */ }) {
-                Text("Edit Profile")
+            Text("Welcome, User!", style = MaterialTheme.typography.headlineSmall)
+            Spacer(modifier = Modifier.height(32.dp))
+            Button(onClick = { authViewModel.logout() }) {
+                Text("Logout")
             }
         }
     }

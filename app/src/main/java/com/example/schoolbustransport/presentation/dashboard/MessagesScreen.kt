@@ -91,7 +91,6 @@ private fun ConversationItem(name: String, lastMessage: String, timestamp: Strin
 			.padding(horizontal = 12.dp, vertical = 10.dp),
 		verticalAlignment = Alignment.CenterVertically
 	) {
-		// Avatar with initial
 		Box(
 			modifier = Modifier
 				.size(44.dp)
@@ -119,6 +118,9 @@ private fun ConversationItem(name: String, lastMessage: String, timestamp: Strin
 			Text(lastMessage, style = MaterialTheme.typography.bodyMedium, maxLines = 1, color = MaterialTheme.colorScheme.onSurfaceVariant)
 		}
 		Spacer(modifier = Modifier.width(12.dp))
-		Text(timestamp, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
+		val time = try {
+			java.time.OffsetDateTime.parse(timestamp).format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"))
+		} catch (_: Exception) { timestamp }
+		Text(time, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
 	}
 }
