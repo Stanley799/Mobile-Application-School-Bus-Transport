@@ -106,18 +106,26 @@ class AuthRepositoryImpl @Inject constructor(
     }
 
     /**
-     * Registers a new user
-     * 
-     * Note: Currently not implemented - registration may be handled
-     * through admin panel or separate registration flow
-     * 
-     * @param email User's email
-     * @param password User's password
-     * @param name User's name
-     * @param role User's role (ADMIN, DRIVER, PARENT)
-     * @return Result containing User on success
+     * Registers a new user (matches backend fields)
      */
-    override suspend fun register(email: String, password: String, name: String, role: String): Result<User> {
-        return Result.failure(NotImplementedError("Registration is not implemented."))
+    override suspend fun register(name: String, email: String, phone: String, password: String, role: String): Result<User> {
+        return try {
+            val request = com.example.schoolbustransport.data.network.dto.RegisterRequest(
+                name = name,
+                email = email,
+                phone = phone,
+                password = password,
+                role = role
+            )
+            val response = apiService.register(request)
+            if (response.isSuccessful && response.body() != null) {
+                Result.success(response.body()!!.toUser())
+            } else {
+                val errorBody = response.errorBody()?.string() ?: "Registration failed"
+                Result.failure(Exception("Registration failed: $errorBody"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
 }

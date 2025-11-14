@@ -1,3 +1,35 @@
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.asRequestBody
+    override suspend fun uploadProfileImage(userId: String, imageFile: java.io.File): Result<User> {
+        return try {
+            val reqFile = imageFile.asRequestBody("image/*".toMediaTypeOrNull())
+            val body = MultipartBody.Part.createFormData("image", imageFile.name, reqFile)
+            val response = apiService.uploadProfileImage(userId, body)
+            if (response.isSuccessful && response.body() != null) {
+                Result.success(response.body()!!.toUser())
+            } else {
+                val errorBody = response.errorBody()?.string() ?: "Failed to upload image"
+                Result.failure(Exception("Upload failed: $errorBody"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun deleteProfileImage(userId: String): Result<Unit> {
+        return try {
+            val response = apiService.deleteProfileImage(userId)
+            if (response.isSuccessful) {
+                Result.success(Unit)
+            } else {
+                val errorBody = response.errorBody()?.string() ?: "Failed to delete image"
+                Result.failure(Exception("Delete failed: $errorBody"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 package com.example.schoolbustransport.data.repository
 
 import com.example.schoolbustransport.data.network.ApiService
@@ -27,8 +59,18 @@ class UserRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun updateUserProfile(userId: String, name: String, phone: String): Result<User> {
-        // Not implemented in this example
-        return Result.failure(UnsupportedOperationException("Updating user profile not implemented"))
+    override suspend fun updateUserProfile(userId: String, name: String?, phone: String?): Result<User> {
+        return try {
+            val request = com.example.schoolbustransport.data.network.dto.UpdateUserProfileRequest(name, phone)
+            val response = apiService.updateUserProfile(userId, request)
+            if (response.isSuccessful && response.body() != null) {
+                Result.success(response.body()!!.toUser())
+            } else {
+                val errorBody = response.errorBody()?.string() ?: "Failed to update user profile"
+                Result.failure(Exception("Update failed: $errorBody"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
 }

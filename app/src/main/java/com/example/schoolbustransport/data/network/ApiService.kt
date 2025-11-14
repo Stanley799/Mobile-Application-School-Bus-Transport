@@ -27,6 +27,25 @@ import retrofit2.http.*
  * for coroutine support.
  */
 interface ApiService {
+            // --- Profile image upload/delete --- //
+            @Multipart
+            @POST("users/{id}/profile-image")
+            suspend fun uploadProfileImage(
+                @Path("id") userId: String,
+                @Part image: okhttp3.MultipartBody.Part
+            ): Response<UserDto>
+
+            @DELETE("users/{id}/profile-image")
+            suspend fun deleteProfileImage(@Path("id") userId: String): Response<Unit>
+        // --- Update user profile --- //
+        @PUT("users/update/{id}")
+        suspend fun updateUserProfile(
+            @Path("id") userId: String,
+            @Body request: UpdateUserProfileRequest
+        ): Response<UserDto>
+    // --- Registration --- //
+    @POST("auth/register")
+    suspend fun register(@Body request: RegisterRequest): Response<UserDto>
 
     // --- Trip Feedback --- //
 

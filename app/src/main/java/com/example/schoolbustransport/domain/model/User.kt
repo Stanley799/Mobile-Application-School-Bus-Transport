@@ -9,7 +9,8 @@ data class User(
     val email: String,
     val name: String,
     val phone: String?,
-    val role: UserRole
+    val role: UserRole,
+    val image: String? = null
 )
 
 /**

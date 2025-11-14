@@ -7,6 +7,7 @@ import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.navigation.NavController
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -16,6 +17,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 
 @Composable
 fun LoginScreen(
+    navController: NavController,
     viewModel: AuthViewModel = hiltViewModel()
 ) {
     val loginState by viewModel.loginState.collectAsState()
@@ -81,6 +83,10 @@ fun LoginScreen(
                 ) {
                     Text("Login", style = MaterialTheme.typography.titleMedium)
                 }
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+            TextButton(onClick = { navController.navigate("signup") }) {
+                Text("Don't have an account? Sign Up")
             }
         }
     }

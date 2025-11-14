@@ -1,3 +1,18 @@
+data class UpdateUserProfileRequest(
+    @SerializedName("name") val name: String?,
+    @SerializedName("phone") val phone: String?
+)
+import com.google.gson.annotations.SerializedName
+/**
+ * DTO for registration request, matching backend fields.
+ */
+data class RegisterRequest(
+    @SerializedName("name") val name: String,
+    @SerializedName("email") val email: String,
+    @SerializedName("phone") val phone: String,
+    @SerializedName("password") val password: String,
+    @SerializedName("role") val role: String
+)
 package com.example.schoolbustransport.data.network.dto
 
 import com.example.schoolbustransport.domain.model.User
@@ -11,7 +26,8 @@ data class UserDto(
     val email: String,
     val name: String,
     val phone: String?,
-    val role: String
+    val role: String,
+    val image: String? = null
 )
 
 /**
@@ -23,6 +39,7 @@ fun UserDto.toUser(): User {
         email = email,
         name = name,
         phone = phone,
-        role = UserRole.fromString(role)
+        role = UserRole.fromString(role),
+        image = image
     )
 }

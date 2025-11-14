@@ -1,3 +1,27 @@
+    // Registration state
+    private val _registerState = MutableStateFlow<RegisterState>(RegisterState.Idle)
+    val registerState: StateFlow<RegisterState> = _registerState
+
+    fun register(name: String, email: String, phone: String, password: String, role: String) {
+        viewModelScope.launch {
+            _registerState.value = RegisterState.Loading
+            val result = authRepository.register(name, email, phone, password, role)
+            result.fold(
+                onSuccess = { user -> _registerState.value = RegisterState.Success(user) },
+                onFailure = { error -> _registerState.value = RegisterState.Error(error.message ?: "An unknown error occurred") }
+            )
+        }
+    }
+
+    fun resetRegisterState() { _registerState.value = RegisterState.Idle }
+
+// Registration state sealed class
+sealed class RegisterState {
+    object Idle : RegisterState()
+    object Loading : RegisterState()
+    data class Success(val user: User) : RegisterState()
+    data class Error(val message: String) : RegisterState()
+}
 package com.example.schoolbustransport.presentation.auth
 
 import androidx.lifecycle.ViewModel
