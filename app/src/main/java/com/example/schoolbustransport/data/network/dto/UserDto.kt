@@ -1,8 +1,14 @@
+package com.example.schoolbustransport.data.network.dto
+
+import com.example.schoolbustransport.domain.model.User
+import com.example.schoolbustransport.domain.model.UserRole
+import com.google.gson.annotations.SerializedName
+
 data class UpdateUserProfileRequest(
     @SerializedName("name") val name: String?,
     @SerializedName("phone") val phone: String?
 )
-import com.google.gson.annotations.SerializedName
+
 /**
  * DTO for registration request, matching backend fields.
  */
@@ -13,10 +19,6 @@ data class RegisterRequest(
     @SerializedName("password") val password: String,
     @SerializedName("role") val role: String
 )
-package com.example.schoolbustransport.data.network.dto
-
-import com.example.schoolbustransport.domain.model.User
-import com.example.schoolbustransport.domain.model.UserRole
 
 /**
  * DTO for user data.

@@ -13,6 +13,7 @@ data class TripFeedbackRequest(
 
 /**
  * Data Transfer Object for feedback response from backend.
+ * Mapping to domain model is handled by TripFeedbackMapper.kt
  */
 data class TripFeedbackDto(
     @SerializedName("id") val id: Int,

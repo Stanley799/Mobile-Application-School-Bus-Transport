@@ -109,21 +109,16 @@ private fun downloadReport(scope: CoroutineScope, context: Context, tripId: Stri
 	val api = EntryPointAccessors.fromApplication(context, ServiceEntryPoint::class.java).apiService()
 	scope.launch(Dispatchers.IO) {
 		val resp = api.getTripReport(tripId)
-			if (resp.isSuccessful && resp.body() != null) {
-				val pdfBytes = resp.body()!!.bytes()
-				// Save under app files; in production use SAF to save under Downloads
-				val outFile = File(context.filesDir, "trip-report-${tripId}.pdf")
-				outFile.outputStream().use { it.write(pdfBytes) }
-			}
+		val body = resp.body()
+		if (resp.isSuccessful && body != null) {
+			val pdfBytes = body.bytes()
+			// Save under app files; in production use SAF to save under Downloads
+			val outFile = File(context.filesDir, "trip-report-${tripId}.pdf")
+			outFile.outputStream().use { it.write(pdfBytes) }
+		}
 	}
 }
 
-// Hilt entry point to resolve ApiService outside of @AndroidEntryPoint scope
-@dagger.hilt.EntryPoint
-@dagger.hilt.InstallIn(dagger.hilt.components.SingletonComponent::class)
-interface ServiceEntryPoint {
-	fun apiService(): ApiService
-}
 
 @Composable
 private fun TripRow(

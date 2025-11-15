@@ -46,7 +46,7 @@ fun NotificationHistoryScreen(vm: MessagesViewModel = hiltViewModel()) {
 }
 
 @Composable
-private fun NotificationHistoryItem(name: String, lastMessage: String, timestamp: String) {
+fun NotificationHistoryItem(name: String, lastMessage: String, timestamp: String) {
     Card(
         modifier = Modifier
             .fillMaxWidth()

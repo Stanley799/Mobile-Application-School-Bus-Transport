@@ -1,9 +1,7 @@
 package com.example.schoolbustransport.data.di
 
 import com.example.schoolbustransport.data.repository.AuthRepositoryImpl
-import com.example.schoolbustransport.data.repository.TripRepositoryImpl
 import com.example.schoolbustransport.domain.repository.AuthRepository
-import com.example.schoolbustransport.domain.repository.TripRepository
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -18,7 +16,4 @@ abstract class RepositoryModule {
     @Singleton
     abstract fun bindAuthRepository(authRepositoryImpl: AuthRepositoryImpl): AuthRepository
 
-    @Binds
-    @Singleton
-    abstract fun bindTripRepository(tripRepositoryImpl: TripRepositoryImpl): TripRepository
 }

@@ -16,15 +16,20 @@ import java.util.TimeZone
 
 data class TripDto(
     val id: Int,
+    @SerializedName("trip_id") val tripId: String?,
     @SerializedName("trip_date") val tripDate: String?,
     val start: String?,
     val stop: String?,
     val status: String?,
+    @SerializedName("trip_name") val tripName: String?,
     val bus: TripBusDto?,
     val route: TripRouteDto?,
     val driver: TripDriverDto?,
     @SerializedName("departure_time") val departureTime: String?,
     @SerializedName("arrival_time") val arrivalTime: String?,
+    @SerializedName("bus_name") val busName: String?,
+    @SerializedName("route_name") val routeName: String?,
+    @SerializedName("driver_name") val driverName: String?,
     @SerializedName("trip_attendance_list") val tripAttendanceList: List<TripStudentLinkDto>?
 )
 
@@ -127,7 +132,7 @@ fun TripDto.toTrip(): Trip {
             Student(
                 id = (it.id ?: 0).toString(),
                 name = listOfNotNull(it.firstName, it.lastName).joinToString(" ").trim(),
-                grade = it.grade?.toIntOrNull() ?: 0, // Safely handle grade
+                grade = it.grade, // Grade is String enum (PP1, PP2, Grade1-6) from database
                 school = "", // Not provided by API, defaulting to empty
                 parentId = it.parentId?.toString() ?: "", // Map parentId, defaulting to empty
                 pickupLat = it.pickupLat,

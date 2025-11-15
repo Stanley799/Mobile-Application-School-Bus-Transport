@@ -1,15 +1,17 @@
 package com.example.schoolbustransport.domain.model
 
+import com.google.firebase.firestore.DocumentId
+
 /**
  * User domain model with sealed class for roles
  * Demonstrates Kotlin's sealed classes for type-safe role management
  */
 data class User(
-    val id: String,
-    val email: String,
-    val name: String,
-    val phone: String?,
-    val role: UserRole,
+    @DocumentId val id: String = "",
+    val email: String = "",
+    val name: String = "",
+    val phone: String? = null,
+    val role: UserRole = UserRole.Parent,
     val image: String? = null
 )
 
@@ -33,7 +35,7 @@ sealed class UserRole {
             "ADMIN" -> Admin
             "DRIVER" -> Driver
             "PARENT" -> Parent
-            else -> throw IllegalArgumentException("Unknown role: $role")
+            else -> Parent // Default to Parent for safety
         }
     }
 }

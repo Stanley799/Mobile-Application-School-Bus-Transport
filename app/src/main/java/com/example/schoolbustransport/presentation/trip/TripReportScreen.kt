@@ -1,30 +1,36 @@
 package com.example.schoolbustransport.presentation.trip
 
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.content.Context
+import android.os.Build
+import android.os.Environment
 import android.widget.Toast
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Error
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.core.app.NotificationCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
-import com.example.schoolbustransport.data.network.ApiService
-import com.example.schoolbustransport.domain.model.Trip
-import com.example.schoolbustransport.domain.model.Student
+import com.example.schoolbustransport.R
+import com.example.schoolbustransport.data.di.ServiceEntryPoint
 import dagger.hilt.android.EntryPointAccessors
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.io.File
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TripReportScreen(
     tripId: String,
@@ -43,7 +49,7 @@ fun TripReportScreen(
                 title = { Text("Trip Report") },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Default.Error, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 }
             )
@@ -75,26 +81,15 @@ fun TripReportScreen(
                     Spacer(Modifier.height(8.dp))
                     LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         items(currentTrip.students) { student ->
-                            val attendance = currentTrip.attendance?.find { it.studentId == student.id }
-                            Card(
-                                modifier = Modifier.fillMaxWidth(),
-                                colors = CardDefaults.cardColors(
-                                    containerColor = if (attendance?.status == "PRESENT") Color(0xFFD0F5E8) else Color(0xFFFFE0E0)
-                                )
-                            ) {
+                            Card(modifier = Modifier.fillMaxWidth()) {
                                 Row(
                                     Modifier.padding(12.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    if (attendance?.status == "PRESENT") {
-                                        Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Color(0xFF2E7D32))
-                                    } else {
-                                        Icon(Icons.Default.Error, contentDescription = null, tint = Color(0xFFC62828))
-                                    }
+                                    Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Color(0xFF2E7D32))
                                     Spacer(Modifier.width(8.dp))
-                                    Text(student.name)
-                                    Spacer(Modifier.weight(1f))
-                                    Text(attendance?.status ?: "-", color = Color.Gray)
+                                    val displayName = student.name.ifBlank { "Student ${student.id}" }
+                                    Text(displayName)
                                 }
                             }
                         }
@@ -106,27 +101,53 @@ fun TripReportScreen(
 }
 
 private fun downloadReport(scope: CoroutineScope, context: Context, tripId: String) {
-    val api = EntryPointAccessors.fromApplication(context, com.example.schoolbustransport.presentation.trip.ServiceEntryPoint::class.java).apiService()
+    val api = EntryPointAccessors.fromApplication(context.applicationContext, ServiceEntryPoint::class.java).apiService()
     scope.launch(Dispatchers.IO) {
-        val resp = api.getTripReport(tripId)
-        if (resp.isSuccessful && resp.body() != null) {
-            val pdfBytes = resp.body()!!.bytes()
-            val outFile = File(context.filesDir, "trip-report-$tripId.pdf")
-            outFile.outputStream().use { it.write(pdfBytes) }
-            launch(Dispatchers.Main) {
-                Toast.makeText(context, "PDF saved: ${outFile.absolutePath}", Toast.LENGTH_LONG).show()
+        try {
+            val resp = api.getTripReport(tripId)
+            val body = resp.body()
+            if (resp.isSuccessful && body != null) {
+                val pdfBytes = body.bytes()
+                val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+                val outFile = File(downloadsDir, "trip-report-$tripId.pdf")
+                try {
+                    outFile.outputStream().use { it.write(pdfBytes) }
+                    launch(Dispatchers.Main) {
+                        showDownloadNotification(context, outFile.name, outFile.absolutePath)
+                        Toast.makeText(context, "PDF saved to Downloads folder", Toast.LENGTH_LONG).show()
+                    }
+                } catch (e: Exception) {
+                    launch(Dispatchers.Main) {
+                        Toast.makeText(context, "Failed to save PDF: ${e.message}", Toast.LENGTH_LONG).show()
+                    }
+                }
+            } else {
+                launch(Dispatchers.Main) {
+                    Toast.makeText(context, "Failed to download PDF: ${resp.message()}", Toast.LENGTH_LONG).show()
+                }
             }
-        } else {
+        } catch (e: Exception) {
             launch(Dispatchers.Main) {
-                Toast.makeText(context, "Failed to download PDF", Toast.LENGTH_LONG).show()
+                Toast.makeText(context, "Failed to download PDF: ${e.message}", Toast.LENGTH_LONG).show()
             }
         }
     }
 }
 
-// Hilt entry point to resolve ApiService outside of @AndroidEntryPoint scope
-@dagger.hilt.EntryPoint
-@dagger.hilt.InstallIn(dagger.hilt.components.SingletonComponent::class)
-interface ServiceEntryPoint {
-    fun apiService(): ApiService
+private fun showDownloadNotification(context: Context, fileName: String, filePath: String) {
+    val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+    val channelId = "download_channel"
+
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        val channel = NotificationChannel(channelId, "Downloads", NotificationManager.IMPORTANCE_DEFAULT)
+        notificationManager.createNotificationChannel(channel)
+    }
+
+    val notification = NotificationCompat.Builder(context, channelId)
+        .setContentTitle("Download Complete")
+        .setContentText("$fileName saved to $filePath")
+        .setSmallIcon(R.drawable.ic_launcher_foreground)
+        .build()
+
+    notificationManager.notify(1, notification)
 }

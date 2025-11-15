@@ -11,12 +11,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavController
 import coil.compose.rememberAsyncImagePainter
-import com.example.schoolbustransport.presentation.profile.ProfileViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(
+    navController: NavController,
     viewModel: ProfileViewModel = hiltViewModel()
 ) {
     val user by viewModel.user.collectAsState()
@@ -85,7 +86,30 @@ fun ProfileScreen(
                 }
             }
             Spacer(modifier = Modifier.height(16.dp))
-            Button(onClick = { /* TODO: Delete account */ }, colors = ButtonDefaults.buttonColors(containerColor = Color.Red), modifier = Modifier.fillMaxWidth()) {
+            val showDeleteDialog = remember { mutableStateOf(false) }
+            if (showDeleteDialog.value) {
+                AlertDialog(
+                    onDismissRequest = { showDeleteDialog.value = false },
+                    title = { Text("Delete Account") },
+                    text = { Text("Are you sure you want to delete your account? This action cannot be undone.") },
+                    confirmButton = {
+                        Button(onClick = {
+                            user?.id?.let {
+                                viewModel.deleteAccount(it) {
+                                    // TODO: Navigate to login or splash after deletion
+                                }
+                            }
+                            showDeleteDialog.value = false
+                        }, colors = ButtonDefaults.buttonColors(containerColor = Color.Red)) {
+                            Text("Delete", color = Color.White)
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showDeleteDialog.value = false }) { Text("Cancel") }
+                    }
+                )
+            }
+            Button(onClick = { showDeleteDialog.value = true }, colors = ButtonDefaults.buttonColors(containerColor = Color.Red), modifier = Modifier.fillMaxWidth()) {
                 Text("Delete Account", color = Color.White)
             }
             if (error != null) {

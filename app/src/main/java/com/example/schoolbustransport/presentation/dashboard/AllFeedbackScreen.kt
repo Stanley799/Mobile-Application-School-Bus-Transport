@@ -17,6 +17,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.schoolbustransport.domain.model.TripFeedback
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AllFeedbackScreen(
     viewModel: FeedbackAnalyticsViewModel = hiltViewModel(),

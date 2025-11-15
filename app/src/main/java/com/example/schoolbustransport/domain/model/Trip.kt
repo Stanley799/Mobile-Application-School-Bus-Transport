@@ -7,16 +7,16 @@ import java.util.Date
  * This is a core domain model.
  */
 data class Trip(
-    val id: String,
-    val startTime: Date,
-    val endTime: Date?,
-    val status: TripStatus,
-    val bus: Bus,
-    val route: Route,
-    val driver: User,
-    val students: List<Student>,
-    val departureTime: String?,
-    val arrivalTime: String?
+    val id: String = "",
+    val startTime: Date = Date(),
+    val endTime: Date? = null,
+    val status: TripStatus = TripStatus.SCHEDULED,
+    val bus: Bus = Bus(),
+    val route: Route = Route(),
+    val driver: User = User(),
+    val students: List<Student> = emptyList(),
+    val departureTime: String? = null,
+    val arrivalTime: String? = null
 )
 
 /**

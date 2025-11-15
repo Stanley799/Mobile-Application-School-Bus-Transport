@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.example.schoolbustransport.domain.model.UserRole
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.jsonwebtoken.Claims
 import io.jsonwebtoken.Jwts
@@ -78,6 +79,10 @@ class SessionManager @Inject constructor(@ApplicationContext private val context
         token?.let { decodeUserIdFromToken(it) }
     }
 
+    val userRoleFlow: Flow<UserRole?> = tokenFlow.map { token ->
+        token?.let { decodeUserRoleFromToken(it) }
+    }
+
     /**
      * Saves the authentication token to DataStore
      * 
@@ -114,6 +119,17 @@ class SessionManager @Inject constructor(@ApplicationContext private val context
             subject.toIntOrNull()
         } catch (e: Exception) {
             // If the token is malformed or the 'sub' claim is not an Int, return null
+            null
+        }
+    }
+
+    private fun decodeUserRoleFromToken(token: String): UserRole? {
+        return try {
+            val split = token.split(".")
+            val claims = String(Base64.decode(split[1], Base64.URL_SAFE), Charset.defaultCharset())
+            val role = claims.substringAfter("\"role\":\"").substringBefore("\"")
+            UserRole.fromString(role)
+        } catch (e: Exception) {
             null
         }
     }

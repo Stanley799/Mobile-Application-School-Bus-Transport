@@ -18,15 +18,29 @@ class FeedbackAnalyticsViewModel @Inject constructor(
     private val _feedbacks = MutableStateFlow<List<TripFeedback>>(emptyList())
     val feedbacks: StateFlow<List<TripFeedback>> = _feedbacks
 
-    fun loadAllFeedback() {
-        // For demo: fetch feedback for all trips (in real app, backend endpoint for all feedback is better)
-        // Here, you would loop over all trip IDs and aggregate feedbacks
-        // For now, just fetch for a sample trip (id = "1")
+    /**
+     * Load feedback for a specific trip.
+     * Note: In production, consider adding a backend endpoint to fetch all feedback across trips.
+     * 
+     * @param tripId The trip ID to fetch feedback for. If null, this method does nothing.
+     */
+    fun loadFeedbackForTrip(tripId: String?) {
+        if (tripId.isNullOrBlank()) return
         viewModelScope.launch {
-            tripRepository.getTripFeedback("1").collect { list ->
-                _feedbacks.update { list }
+            try {
+                tripRepository.getTripFeedback(tripId).collect { list ->
+                    _feedbacks.update { list }
+                }
+            } catch (e: Exception) {
+                // Error handling - could emit error state if needed
+                _feedbacks.update { emptyList() }
             }
         }
+    }
+    
+    @Deprecated("Use loadFeedbackForTrip(tripId) instead. This method uses hardcoded trip ID.")
+    fun loadAllFeedback() {
+        loadFeedbackForTrip("1")
     }
 
     val averageRating: Float

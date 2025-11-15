@@ -10,17 +10,16 @@ plugins {
     alias(libs.plugins.ksp)
     alias(libs.plugins.crashlytics)
     alias(libs.plugins.kotlinx.serialization)
-    // Removed kapt - migrated to KSP for better Kotlin 2.0 support and performance
 }
 
 android {
     namespace = "com.example.schoolbustransport"
-    compileSdk = 36
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.example.schoolbustransport"
         minSdk = 24
-        targetSdk = 36
+        targetSdk = 35
         versionCode = 1
         versionName = "1.0"
 
@@ -33,7 +32,6 @@ android {
 
     buildTypes {
         release {
-            buildConfigField("String", "BASE_URL", "\"https://api.yourproductiondomain.com/api/\"")
             isMinifyEnabled = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
@@ -42,7 +40,6 @@ android {
         }
 
         debug {
-            buildConfigField("String", "BASE_URL", "\"https://stormlike-ritualistic-pa.ngrok-free.dev/api/\"")
             isMinifyEnabled = false
         }
     }
@@ -58,7 +55,6 @@ android {
 
     buildFeatures {
         compose = true
-        buildConfig = true
     }
 
     packaging {
@@ -87,26 +83,14 @@ dependencies {
     implementation(libs.androidx.navigation.compose)
 
     // Hilt Dependency Injection
-    // Migrated from kapt to KSP for Kotlin 2.0 compatibility and better performance
     implementation(libs.hilt.android)
-    ksp(libs.hilt.compiler) // Using KSP instead of kapt for Kotlin 2.0 support
+    ksp(libs.hilt.compiler)
     implementation(libs.androidx.hilt.navigation.compose)
 
-    // Room Database
+    // Room Database (can be kept for offline caching if desired, or removed)
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
     ksp(libs.androidx.room.compiler)
-
-    // Networking
-    implementation(libs.retrofit)
-    implementation(libs.retrofit.converter.gson)
-    implementation(libs.okhttp)
-    implementation(libs.okhttp.logging.interceptor)
-
-    // JWT Decoding
-    implementation("io.jsonwebtoken:jjwt-api:0.11.5")
-    runtimeOnly("io.jsonwebtoken:jjwt-impl:0.11.5")
-    runtimeOnly("io.jsonwebtoken:jjwt-gson:0.11.5")
 
     // Coroutines
     implementation(libs.kotlinx.coroutines.android)
@@ -120,16 +104,14 @@ dependencies {
 
     // Firebase
     implementation(platform(libs.firebase.bom))
-    implementation(libs.firebase.analytics)
-    implementation(libs.firebase.messaging)
-    implementation(libs.firebase.crashlytics)
-
+    implementation("com.google.firebase:firebase-analytics-ktx")
+    implementation("com.google.firebase:firebase-messaging-ktx")
+    implementation("com.google.firebase:firebase-crashlytics-ktx")
+    implementation("com.google.firebase:firebase-auth-ktx")
+    implementation("com.google.firebase:firebase-firestore-ktx")
 
     // osmdroid & OpenStreetMap
     implementation("org.osmdroid:osmdroid-android:6.1.16")
-
-    // Socket.io
-    implementation(libs.socket.io.client)
 
     // WorkManager
     implementation(libs.androidx.work.ktx)

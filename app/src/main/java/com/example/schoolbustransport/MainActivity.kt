@@ -20,6 +20,7 @@ import androidx.navigation.navArgument
 import com.example.schoolbustransport.presentation.auth.AuthViewModel
 import com.example.schoolbustransport.presentation.auth.LoginScreen
 import com.example.schoolbustransport.presentation.auth.LoginState
+import com.example.schoolbustransport.presentation.auth.SignUpScreen
 import com.example.schoolbustransport.presentation.dashboard.AdminPanelScreen
 import com.example.schoolbustransport.presentation.dashboard.ChatScreen
 import com.example.schoolbustransport.presentation.dashboard.DashboardScreen
@@ -28,7 +29,7 @@ import com.example.schoolbustransport.presentation.dashboard.MessagesScreen
 import com.example.schoolbustransport.presentation.dashboard.NewMessageScreen
 import com.example.schoolbustransport.presentation.notifications.NotificationsScreen
 import com.example.schoolbustransport.presentation.profile.ProfileScreen
-import com.example.schoolbustransport.presentation.schedule.ScheduleScreen
+import com.example.schoolbustransport.presentation.schedule.*
 import com.example.schoolbustransport.presentation.trip.AttendanceScreen
 import com.example.schoolbustransport.presentation.trip.LiveTrackingScreen
 import com.example.schoolbustransport.presentation.trip.TripListScreen
@@ -52,7 +53,15 @@ class MainActivity : ComponentActivity() {
                         LoadingScreen()
                     }
                     else -> {
-                        LoginScreen(viewModel = authViewModel)
+                        val authNavController = rememberNavController()
+                        NavHost(navController = authNavController, startDestination = "login") {
+                            composable("login") {
+                                LoginScreen(navController = authNavController, viewModel = authViewModel)
+                            }
+                            composable("signup") {
+                                SignUpScreen(navController = authNavController, viewModel = authViewModel)
+                            }
+                        }
                     }
                 }
             }
@@ -100,16 +109,28 @@ fun AppNavigation(user: com.example.schoolbustransport.domain.model.User) {
             AdminPanelScreen(navController = navController)
         }
         composable("schedule") {
-            ScheduleScreen()
+            ScheduleScreen(navController = navController)
         }
         composable("notifications") {
-            NotificationsScreen()
+            NotificationsScreen(navController = navController)
         }
         composable("profile") {
-            ProfileScreen()
+            ProfileScreen(navController = navController)
         }
         composable("manage_students") {
-            ManageStudentsScreen()
+            ManageStudentsScreen(navController = navController)
+        }
+        composable("manage_trips") {
+            ManageTripsScreen(navController = navController)
+        }
+        composable("manage_buses") {
+            ManageBusesScreen(navController = navController)
+        }
+        composable("manage_routes") {
+            ManageRoutesScreen(navController = navController)
+        }
+        composable("manage_drivers") {
+            ManageDriversScreen(navController = navController)
         }
         composable(
             route = "trip_report/{tripId}",

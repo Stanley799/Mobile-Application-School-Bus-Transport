@@ -27,6 +27,9 @@ import retrofit2.http.*
  * for coroutine support.
  */
 interface ApiService {
+                // --- Delete account --- //
+                @DELETE("users/delete/{id}")
+                suspend fun deleteAccount(@Path("id") userId: String): Response<Unit>
             // --- Profile image upload/delete --- //
             @Multipart
             @POST("users/{id}/profile-image")
@@ -153,6 +156,9 @@ interface ApiService {
         @Path("id") studentId: String,
         @Body request: UpdateStudentRequest
     ): Response<StudentDto>
+
+    @DELETE("students/{id}")
+    suspend fun deleteStudent(@Path("id") studentId: String): Response<Unit>
 
     // --- Admin (lists for scheduling) --- //
 

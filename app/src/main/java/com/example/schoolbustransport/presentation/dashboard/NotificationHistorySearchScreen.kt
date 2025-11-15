@@ -1,9 +1,10 @@
 package com.example.schoolbustransport.presentation.dashboard
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.Image
-import androidx.compose.ui.res.painterResource
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -61,7 +62,7 @@ fun NotificationHistorySearchScreen(vm: MessagesViewModel = hiltViewModel()) {
             Text("No notifications or messages found.", color = Color.Gray, style = MaterialTheme.typography.bodyLarge)
             Text("Try a different search or check back later.", color = Color.Gray, style = MaterialTheme.typography.bodyMedium)
         } else {
-            androidx.compose.foundation.lazy.LazyColumn(modifier = Modifier.fillMaxSize()) {
+            LazyColumn(modifier = Modifier.fillMaxSize()) {
                 items(filteredConversations) { convo ->
                     NotificationHistoryItem(
                         name = convo.userName,

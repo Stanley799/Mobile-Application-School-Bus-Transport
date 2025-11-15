@@ -16,6 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SignUpScreen(
     navController: NavController,
@@ -27,10 +28,17 @@ fun SignUpScreen(
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
     var role by remember { mutableStateOf("") }
-    var error by remember { mutableStateOf("") }
+    var validationError by remember { mutableStateOf<String?>(null) }
     val registerState by viewModel.registerState.collectAsState()
 
     val roles = listOf("PARENT", "DRIVER", "ADMIN")
+
+    // Reset state when the composable is disposed
+    DisposableEffect(Unit) {
+        onDispose {
+            viewModel.resetRegisterState()
+        }
+    }
 
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -98,7 +106,6 @@ fun SignUpScreen(
                 singleLine = true
             )
             Spacer(modifier = Modifier.height(12.dp))
-            // Role selection dropdown
             var expanded by remember { mutableStateOf(false) }
             ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = !expanded }) {
                 OutlinedTextField(
@@ -121,40 +128,39 @@ fun SignUpScreen(
                 }
             }
             Spacer(modifier = Modifier.height(24.dp))
-            if (error.isNotBlank()) {
-                Text(error, color = MaterialTheme.colorScheme.error)
+
+            validationError?.let {
+                Text(it, color = MaterialTheme.colorScheme.error)
                 Spacer(modifier = Modifier.height(8.dp))
             }
-            if (registerState is RegisterState.Loading) {
-                CircularProgressIndicator()
-            } else {
-                Button(
-                    onClick = {
-                        if (name.isBlank() || email.isBlank() || phone.isBlank() || password.isBlank() || confirmPassword.isBlank() || role.isBlank()) {
-                            error = "All fields are required."
-                        } else if (password != confirmPassword) {
-                            error = "Passwords do not match."
-                        } else {
-                            error = ""
-                            viewModel.register(name, email, phone, password, role)
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth().height(56.dp),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Text("Sign Up", style = MaterialTheme.typography.titleMedium)
+
+            when (registerState) {
+                is RegisterState.Loading -> {
+                    CircularProgressIndicator()
+                }
+                is RegisterState.Error -> {
+                    Text((registerState as RegisterState.Error).message, color = MaterialTheme.colorScheme.error)
+                }
+                else -> {
+                    Button(
+                        onClick = {
+                            if (name.isBlank() || email.isBlank() || phone.isBlank() || password.isBlank() || role.isBlank()) {
+                                validationError = "All fields are required."
+                            } else if (password != confirmPassword) {
+                                validationError = "Passwords do not match."
+                            } else {
+                                validationError = null
+                                viewModel.register(name, email, phone, password, role)
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth().height(56.dp),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text("Sign Up", style = MaterialTheme.typography.titleMedium)
+                    }
                 }
             }
-            if (registerState is RegisterState.Success) {
-                // Navigate to login or home after successful registration
-                LaunchedEffect(Unit) {
-                    viewModel.resetRegisterState()
-                    navController.popBackStack()
-                }
-            }
-            if (registerState is RegisterState.Error) {
-                Text((registerState as RegisterState.Error).message, color = MaterialTheme.colorScheme.error)
-            }
+
             Spacer(modifier = Modifier.height(16.dp))
             TextButton(onClick = { navController.popBackStack() }) {
                 Text("Already have an account? Log in")

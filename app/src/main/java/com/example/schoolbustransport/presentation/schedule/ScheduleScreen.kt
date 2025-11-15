@@ -1,36 +1,33 @@
 package com.example.schoolbustransport.presentation.schedule
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
-import com.example.schoolbustransport.domain.model.Trip
-import com.example.schoolbustransport.presentation.trip.TripState
-import com.example.schoolbustransport.presentation.trip.TripViewModel
+import androidx.navigation.NavController
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ScheduleScreen(tripViewModel: TripViewModel = hiltViewModel()) {
-    val tripState by tripViewModel.tripState.collectAsState()
+fun ScheduleScreen(navController: NavController) {
 
     Scaffold(
         topBar = {
-            CenterAlignedTopAppBar(
-                title = { Text("Full Schedule") }
+            TopAppBar(
+                title = { Text("Admin Schedule Management") },
+                navigationIcon = {
+                    IconButton(onClick = { navController.popBackStack() }) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                }
             )
         }
     ) { paddingValues ->
@@ -41,52 +38,45 @@ fun ScheduleScreen(tripViewModel: TripViewModel = hiltViewModel()) {
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Text("All Scheduled Trips", style = MaterialTheme.typography.headlineSmall)
+            Text("Trip Management", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            AdminActionCard(
+                title = "Manage Trips",
+                icon = Icons.Default.DateRange,
+                onClick = { /* TODO: navController.navigate("manage_trips") */ }
+            )
+            
+            Text("Asset Management", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            AdminActionCard(
+                title = "Manage Buses",
+                icon = Icons.Default.DirectionsBus,
+                onClick = { /* TODO: navController.navigate("manage_buses") */ }
+            )
+            AdminActionCard(
+                title = "Manage Routes",
+                icon = Icons.Default.Map,
+                onClick = { /* TODO: navController.navigate("manage_routes") */ }
+            )
 
-            when (val state = tripState) {
-                is TripState.Loading -> {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator()
-                    }
-                }
-                is TripState.Error -> {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text("Error: ${state.message}", color = MaterialTheme.colorScheme.error)
-                    }
-                }
-                is TripState.Success -> {
-                    if (state.trips.isEmpty()) {
-                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Text("No trips scheduled.")
-                        }
-                    } else {
-                        LazyColumn(modifier = Modifier.fillMaxSize()) {
-                            items(state.trips) { trip ->
-                                TripScheduleItem(trip = trip)
-                            }
-                        }
-                    }
-                }
-                else -> {}
-            }
+            Text("Personnel Management", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            AdminActionCard(
+                title = "Manage Drivers",
+                icon = Icons.Default.Person,
+                onClick = { /* TODO: navController.navigate("manage_drivers") */ }
+            )
         }
     }
 }
 
 @Composable
-fun TripScheduleItem(trip: Trip) {
+fun AdminActionCard(title: String, icon: androidx.compose.ui.graphics.vector.ImageVector, onClick: () -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(4.dp)
+        elevation = CardDefaults.cardElevation(4.dp),
+        onClick = onClick
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text(trip.route.name, style = MaterialTheme.typography.titleLarge)
-            Spacer(modifier = Modifier.height(8.dp))
-            Text("Bus: ${trip.bus.licensePlate}", style = MaterialTheme.typography.bodyMedium)
-            Text("Driver: ${trip.driver.name}", style = MaterialTheme.typography.bodyMedium)
-            Text("Departure: ${trip.departureTime}", style = MaterialTheme.typography.bodyMedium)
-            Text("Arrival: ${trip.arrivalTime}", style = MaterialTheme.typography.bodyMedium)
-            Text("Status: ${trip.status}", style = MaterialTheme.typography.bodyMedium)
+            Icon(imageVector = icon, contentDescription = null, modifier = Modifier.padding(bottom = 8.dp))
+            Text(title, style = MaterialTheme.typography.titleLarge)
         }
     }
 }

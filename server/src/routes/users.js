@@ -1,4 +1,3 @@
-
 // src/routes/users.js
 
 /**
@@ -9,6 +8,7 @@
  * Defines endpoints for user-related actions.
  * - `/profile/:id`: Fetches a user's profile.
  * - `/update/:id`: Updates a user's profile information.
+ * - `/delete/:id`: Deletes a user account.
  */
 
 const express = require('express');
@@ -37,7 +37,7 @@ const upload = multer({ storage });
 router.use(authMiddleware);
 
 // Route to get user profile (ADMIN only)
-router.get('/profile/:id', roleMiddleware(['ADMIN']), userController.getUserProfile);
+router.get('/profile/:id', roleMiddleware(['ADMIN', 'DRIVER', 'PARENT']), userController.getUserProfile);
 
 // Route to get own profile (ADMIN, DRIVER, PARENT)
 router.get('/me', roleMiddleware(['ADMIN', 'DRIVER', 'PARENT']), userController.getMyProfile);
@@ -45,6 +45,8 @@ router.get('/me', roleMiddleware(['ADMIN', 'DRIVER', 'PARENT']), userController.
 // Route to update user profile (ADMIN, DRIVER, PARENT)
 router.put('/update/:id', roleMiddleware(['ADMIN', 'DRIVER', 'PARENT']), userController.updateUserProfile);
 
+// Route to delete account (authenticated user only)
+router.delete('/delete/:id', userController.deleteAccount);
 
 // Profile image upload (authenticated user only)
 router.post('/:id/profile-image', upload.single('image'), userController.uploadProfileImage);

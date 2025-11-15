@@ -27,8 +27,13 @@ class ProfileViewModel @Inject constructor(
         viewModelScope.launch {
             _isLoading.value = true
             _error.value = null
-            userRepository.getUserProfile(userId).collect {
-                _user.value = it
+            try {
+                userRepository.getUserProfile(userId).collect {
+                    _user.value = it
+                    _isLoading.value = false
+                }
+            } catch (e: Exception) {
+                _error.value = e.message ?: "Failed to load user profile"
                 _isLoading.value = false
             }
         }
@@ -73,7 +78,16 @@ class ProfileViewModel @Inject constructor(
         }
     }
 
-    fun deleteAccount(userId: String) {
-        // TODO: Implement account deletion logic
+    fun deleteAccount(userId: String, onSuccess: () -> Unit) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            _error.value = null
+            val result = userRepository.deleteAccount(userId)
+            result.fold(
+                onSuccess = { onSuccess() },
+                onFailure = { _error.value = it.message }
+            )
+            _isLoading.value = false
+        }
     }
 }

@@ -11,10 +11,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.navigation.NavController
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun NotificationsScreen(notifications: List<String> = emptyList()) {
+fun NotificationsScreen(navController: NavController, notifications: List<String> = emptyList()) {
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(

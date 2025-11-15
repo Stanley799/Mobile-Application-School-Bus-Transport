@@ -1,3 +1,28 @@
+/**
+ * Deletes a user's account and all related data.
+ * @param {import('express').Request} req
+ * @param {import('express').Response} res
+ */
+exports.deleteAccount = async (req, res) => {
+    const { id } = req.params;
+    const prisma = req.prisma;
+    const requestingUser = req.user;
+    const idInt = Number.parseInt(id, 10);
+    if (Number.isNaN(idInt)) {
+        return res.status(400).json({ error: 'Invalid user id' });
+    }
+    if (requestingUser.userId !== idInt) {
+        return res.status(403).json({ error: 'Forbidden: You can only delete your own account' });
+    }
+    try {
+        // Delete user and cascade (Prisma relations handle most cleanup)
+        await prisma.users.delete({ where: { id: idInt } });
+        res.json({ message: 'Account deleted successfully' });
+    } catch (error) {
+        console.error('Error deleting account:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+};
 const path = require('path');
 const fs = require('fs');
 

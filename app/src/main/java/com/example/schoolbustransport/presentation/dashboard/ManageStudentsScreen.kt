@@ -4,7 +4,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.ui.window.Dialog
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -15,9 +14,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavController
+import com.example.schoolbustransport.data.network.dto.StudentDto
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ManageStudentsScreen(viewModel: StudentsViewModel = hiltViewModel()) {
+fun ManageStudentsScreen(navController: NavController, viewModel: StudentsViewModel = hiltViewModel()) {
     // Local form state for creating a new student
     var firstName by remember { mutableStateOf("") }
     var lastName by remember { mutableStateOf("") }
@@ -35,9 +37,9 @@ fun ManageStudentsScreen(viewModel: StudentsViewModel = hiltViewModel()) {
     var filterStream by remember { mutableStateOf("") }
     // Filtered list
     val filteredStudents = students.filter { s ->
+        val fullName = listOfNotNull(s.firstName, s.lastName).joinToString(" ").trim()
         val matchesQuery = searchQuery.isBlank() ||
-            s.firstName.contains(searchQuery, ignoreCase = true) ||
-            s.lastName.contains(searchQuery, ignoreCase = true) ||
+            fullName.contains(searchQuery, ignoreCase = true) ||
             s.admission.toString().contains(searchQuery)
         val matchesGrade = filterGrade.isBlank() || (s.grade?.equals(filterGrade, ignoreCase = true) == true)
         val matchesStream = filterStream.isBlank() || (s.stream?.equals(filterStream, ignoreCase = true) == true)
@@ -94,10 +96,11 @@ fun ManageStudentsScreen(viewModel: StudentsViewModel = hiltViewModel()) {
 
             // List of filtered students
             filteredStudents.forEach { s ->
+                val fullName = listOfNotNull(s.firstName, s.lastName).joinToString(" ").trim().ifBlank { "Unknown student" }
                 ElevatedCard(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
                     Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
-                            Text("${s.firstName} ${s.lastName}", style = MaterialTheme.typography.titleMedium)
+                            Text(fullName, style = MaterialTheme.typography.titleMedium)
                             Text("Admission: ${s.admission}", style = MaterialTheme.typography.bodySmall)
                             Text("Grade: ${s.grade ?: "-"}  \u2022  Stream: ${s.stream ?: "-"}", style = MaterialTheme.typography.bodySmall)
                         }
@@ -113,48 +116,46 @@ fun ManageStudentsScreen(viewModel: StudentsViewModel = hiltViewModel()) {
 
             // Edit dialog
             editStudent?.let { student ->
-                Dialog(onDismissRequest = { editStudent = null }) {
-                    Surface(shape = MaterialTheme.shapes.medium, tonalElevation = 8.dp) {
-                        var firstName by remember { mutableStateOf(student.firstName) }
-                        var lastName by remember { mutableStateOf(student.lastName) }
-                        var grade by remember { mutableStateOf(student.grade ?: "") }
-                        var stream by remember { mutableStateOf(student.stream ?: "") }
-                        Column(Modifier.padding(20.dp)) {
-                            Text("Edit Student", style = MaterialTheme.typography.titleLarge)
-                            Spacer(Modifier.height(12.dp))
-                            OutlinedTextField(value = firstName, onValueChange = { firstName = it }, label = { Text("First name") })
-                            Spacer(Modifier.height(8.dp))
-                            OutlinedTextField(value = lastName, onValueChange = { lastName = it }, label = { Text("Last name") })
-                            Spacer(Modifier.height(8.dp))
-                            OutlinedTextField(value = grade, onValueChange = { grade = it }, label = { Text("Grade") })
-                            Spacer(Modifier.height(8.dp))
-                            OutlinedTextField(value = stream, onValueChange = { stream = it }, label = { Text("Stream") })
-                            Spacer(Modifier.height(16.dp))
-                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                                TextButton(onClick = { editStudent = null }) { Text("Cancel") }
-                                Spacer(Modifier.width(8.dp))
-                                Button(onClick = {
-                                    viewModel.updateStudent(
-                                        student.id,
-                                        firstName.ifBlank { null },
-                                        lastName.ifBlank { null },
-                                        grade.ifBlank { null },
-                                        stream.ifBlank { null }
-                                    )
-                                    editStudent = null
-                                }) { Text("Save") }
-                            }
+                var studentFirstName by remember { mutableStateOf(student.firstName ?: "") }
+                var studentLastName by remember { mutableStateOf(student.lastName ?: "") }
+                var studentGrade by remember { mutableStateOf(student.grade ?: "") }
+                var studentStream by remember { mutableStateOf(student.stream ?: "") }
+                AlertDialog(
+                    onDismissRequest = { editStudent = null },
+                    title = { Text("Edit Student") },
+                    text = {
+                        Column {
+                            OutlinedTextField(value = studentFirstName, onValueChange = { studentFirstName = it }, label = { Text("First name") })
+                            OutlinedTextField(value = studentLastName, onValueChange = { studentLastName = it }, label = { Text("Last name") })
+                            OutlinedTextField(value = studentGrade, onValueChange = { studentGrade = it }, label = { Text("Grade") })
+                            OutlinedTextField(value = studentStream, onValueChange = { studentStream = it }, label = { Text("Stream") })
                         }
+                    },
+                    confirmButton = {
+                        Button(onClick = {
+                            viewModel.updateStudent(
+                                student.id,
+                                studentFirstName.ifBlank { null },
+                                studentLastName.ifBlank { null },
+                                studentGrade,
+                                studentStream
+                            )
+                            editStudent = null
+                        }) { Text("Save") }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { editStudent = null }) { Text("Cancel") }
                     }
-                }
+                )
             }
 
             // Delete confirmation dialog
             showDeleteDialog?.let { student ->
+                val fullName = listOfNotNull(student.firstName, student.lastName).joinToString(" ").trim().ifBlank { "this student" }
                 AlertDialog(
                     onDismissRequest = { showDeleteDialog = null },
                     title = { Text("Delete Student") },
-                    text = { Text("Are you sure you want to delete ${student.firstName} ${student.lastName}?") },
+                    text = { Text("Are you sure you want to delete $fullName?") },
                     confirmButton = {
                         Button(onClick = {
                             viewModel.deleteStudent(student.id)
@@ -173,19 +174,20 @@ fun ManageStudentsScreen(viewModel: StudentsViewModel = hiltViewModel()) {
 
             Text("Register a Child", style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.height(16.dp))
-            OutlinedTextField(
-                value = firstName,
-                onValueChange = { firstName = it },
-                label = { Text("First name") },
-                modifier = Modifier.fillMaxWidth()
-            )
-            Spacer(Modifier.height(8.dp))
-            OutlinedTextField(
-                value = lastName,
-                onValueChange = { lastName = it },
-                label = { Text("Last name") },
-                modifier = Modifier.fillMaxWidth()
-            )
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    value = firstName,
+                    onValueChange = { firstName = it },
+                    label = { Text("First name") },
+                    modifier = Modifier.weight(1f)
+                )
+                OutlinedTextField(
+                    value = lastName,
+                    onValueChange = { lastName = it },
+                    label = { Text("Last name") },
+                    modifier = Modifier.weight(1f)
+                )
+            }
             Spacer(Modifier.height(8.dp))
             OutlinedTextField(
                 value = admission,
@@ -212,12 +214,18 @@ fun ManageStudentsScreen(viewModel: StudentsViewModel = hiltViewModel()) {
             Button(
                 onClick = {
                     val admissionInt = admission.toIntOrNull()
-                    if (firstName.isNotBlank() && lastName.isNotBlank() && admissionInt != null) {
-                        viewModel.createStudent(firstName, lastName, admissionInt, grade.ifBlank { null }, stream.ifBlank { null })
+                    if (firstName.isNotBlank() && admissionInt != null) {
+                        viewModel.createStudent(
+                            firstName = firstName,
+                            lastName = lastName.ifBlank { "" },
+                            admission = admissionInt,
+                            grade = grade.ifBlank { null },
+                            stream = stream.ifBlank { null }
+                        )
                         firstName = ""; lastName = ""; admission = ""; grade = ""; stream = ""
                     }
                 },
-                enabled = !loading && firstName.isNotBlank() && lastName.isNotBlank() && admission.isNotBlank() && admission.toIntOrNull() != null,
+                enabled = !loading && firstName.isNotBlank() && admission.isNotBlank() && admission.toIntOrNull() != null,
                 modifier = Modifier.align(Alignment.End)
             ) { Text("Add Child") }
         }
