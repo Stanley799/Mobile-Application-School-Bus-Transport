@@ -4,11 +4,13 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
 import android.os.Build
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -18,7 +20,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -26,13 +30,12 @@ import androidx.compose.ui.unit.sp
 import androidx.core.app.NotificationCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
-import com.example.schoolbustransport.BuildConfig
+import coil.compose.rememberAsyncImagePainter
 import com.example.schoolbustransport.R
 import com.example.schoolbustransport.domain.model.Trip
 import com.example.schoolbustransport.domain.model.TripStatus
 import com.example.schoolbustransport.domain.model.User
 import com.example.schoolbustransport.domain.model.UserRole
-import com.example.schoolbustransport.presentation.auth.AuthViewModel
 import com.example.schoolbustransport.presentation.trip.TripViewModel
 import com.example.schoolbustransport.ui.theme.SchoolBusTransportTheme
 
@@ -40,81 +43,32 @@ import com.example.schoolbustransport.ui.theme.SchoolBusTransportTheme
 @Composable
 fun DashboardScreen(
     user: User,
-    authViewModel: AuthViewModel = hiltViewModel(),
     navController: NavController
 ) {
     val tripViewModel: TripViewModel = hiltViewModel()
     val tripState by tripViewModel.tripState.collectAsState()
     var searchText by remember { mutableStateOf("") }
-    val context = LocalContext.current
-    // Load trips on first composition
-    LaunchedEffect(Unit) { tripViewModel.loadTrips() }
-
-    // Notification state
-    val messagesViewModel: MessagesViewModel = hiltViewModel()
-    val notificationMessage = remember { mutableStateOf<String?>(null) }
-    val notificationSender = remember { mutableStateOf<String?>(null) }
-    val notificationVisible = remember { mutableStateOf(false) }
-    val shownNotificationIds = remember { mutableStateOf(setOf<Int>()) }
-
-    // Listen for notification messages globally
-    LaunchedEffect(Unit) {
-        messagesViewModel.initSocket(authViewModel.tokenFlow.value ?: "", BuildConfig.BASE_URL)
-        messagesViewModel.messages.collect { messages ->
-            // Show banner and system notification for new, unread notifications
-            val notif = messages.lastOrNull { 
-                it.type == "notification" && !shownNotificationIds.value.contains(it.messageId)
-            }
-            // Only show notifications for parents
-            if (user.role is UserRole.Parent && notif != null) {
-                val senderName = notif.sender?.name ?: notif.senderId.toString()
-                // Show in-app banner
-                notificationMessage.value = notif.content
-                notificationSender.value = senderName
-                notificationVisible.value = true
-                // Show system notification
-                showHeadsUpNotification(context, "New message from $senderName", notif.content)
-                // Add to seen IDs
-                shownNotificationIds.value += notif.messageId
-            }
-        }
-    }
 
     SchoolBusTransportTheme {
         Scaffold(
             topBar = {
-                Column {
-                    NotificationBanner(
-                        message = notificationMessage.value,
-                        sender = notificationSender.value,
-                        visible = notificationVisible.value,
-                        onDismiss = { notificationVisible.value = false }
+                TopAppBar(
+                    title = {
+                        Column {
+                            Text("Welcome to", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("School Bus System", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                        }
+                    },
+                    actions = {
+                        ProfileAvatar(imageUrl = user.image) {
+                            navController.navigate("profile")
+                        }
+                        Spacer(modifier = Modifier.width(16.dp))
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.background
                     )
-                    TopAppBar(
-                        title = { 
-                            Column {
-                                Text("Welcome to", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                Text("School Bus System", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                            }
-                        },
-                        navigationIcon = {
-                            IconButton(onClick = { /* TODO: Open navigation drawer */ }) {
-                                Icon(Icons.Default.Menu, contentDescription = "Menu")
-                            }
-                        },
-                        actions = {
-                            IconButton(onClick = { /* TODO: Search action */ }) {
-                                Icon(Icons.Default.Search, contentDescription = "Search")
-                            }
-                            IconButton(onClick = { navController.navigate("profile") }) {
-                                Icon(Icons.Default.Person, contentDescription = "Profile")
-                            }
-                        },
-                        colors = TopAppBarDefaults.topAppBarColors(
-                            containerColor = MaterialTheme.colorScheme.background
-                        )
-                    )
-                }
+                )
             },
             bottomBar = { BottomNavigationBar(navController = navController, user = user) }
         ) { paddingValues ->
@@ -129,7 +83,7 @@ fun DashboardScreen(
                 val trips = (tripState as? com.example.schoolbustransport.presentation.trip.TripState.Success)?.trips ?: emptyList()
                 val currentTrip = trips.firstOrNull { it.status == TripStatus.IN_PROGRESS }
                 val upcomingTrips = trips.filter { it.status == TripStatus.SCHEDULED }
-                // Current Trip Card
+
                 if (currentTrip != null) {
                     CurrentTripCard(trip = currentTrip)
                 } else {
@@ -137,59 +91,75 @@ fun DashboardScreen(
                 }
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Search Bar
                 OutlinedTextField(
                     value = searchText,
                     onValueChange = { searchText = it },
                     placeholder = { Text("Search for routes, schedules, or bus stops") },
                     leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-                    trailingIcon = {
-                        IconButton(onClick = { /* TODO: Implement search functionality */ }) {
-                            Icon(Icons.Default.Search, contentDescription = "Search")
-                        }
-                    },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(32.dp)
                 )
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // My Buses Section
                 Text("My Buses", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.height(16.dp))
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    items(3) { // Placeholder data
-                        BusStatusCard(it)
-                    }
+                    items(3) { BusStatusCard(it) }
                 }
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Upcoming Trips
                 UpcomingTripsCard(upcomingTrips, modifier = Modifier.fillMaxWidth())
-                
+
                 Spacer(modifier = Modifier.height(24.dp))
-                
-                // Bottom action cards
+
                 Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                     ActionCard(
-                        title = "Live Tracking", 
-                        subtitle = "View Map", 
+                        title = "Live Tracking",
+                        subtitle = "View Map",
                         modifier = Modifier.weight(1f),
-                        onClick = { navController.navigate("live_tracking") } 
+                        onClick = { navController.navigate("live_tracking") }
                     )
                     ActionCard(
-                        title = "Notifications", 
-                        subtitle = "Contact Support", 
-                        modifier = Modifier.weight(1f), 
+                        title = "Notifications",
+                        subtitle = "Contact Support",
+                        modifier = Modifier.weight(1f),
                         isPrimary = false,
                         onClick = { navController.navigate("notifications") }
                     )
                 }
                 Spacer(modifier = Modifier.height(24.dp))
-                // Personalized Schedule/Trips Section
+
                 PersonalizedTripsSection(user = user, trips = trips)
             }
+        }
+    }
+}
+
+@Composable
+fun ProfileAvatar(imageUrl: String?, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .size(40.dp)
+            .clip(CircleShape)
+            .background(MaterialTheme.colorScheme.secondaryContainer)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        if (!imageUrl.isNullOrBlank()) {
+            Image(
+                painter = rememberAsyncImagePainter(imageUrl),
+                contentDescription = "Profile Picture",
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
+        } else {
+            Icon(
+                imageVector = Icons.Default.Person,
+                contentDescription = "Profile Picture Placeholder",
+                tint = MaterialTheme.colorScheme.onSecondaryContainer
+            )
         }
     }
 }
@@ -298,7 +268,7 @@ fun BottomNavigationBar(navController: NavController, user: User) {
             selected = true, // Always selected on the dashboard
             onClick = { /* No-op, already home */ }
         )
-        if (user.role is UserRole.Admin) {
+        if (UserRole.fromString(user.role) is UserRole.Admin) {
             NavigationBarItem(
                 icon = { Icon(Icons.Filled.CalendarToday, contentDescription = "Schedule") },
                 label = { Text("Schedule") },
@@ -317,7 +287,7 @@ fun BottomNavigationBar(navController: NavController, user: User) {
 
 @Composable
 fun PersonalizedTripsSection(user: User, trips: List<Trip>) {
-    val filteredTrips = when (user.role) {
+    val filteredTrips = when (UserRole.fromString(user.role)) {
         is UserRole.Parent -> trips.filter { trip -> trip.students.any { it.parentId == user.id } }
         is UserRole.Driver -> trips.filter { trip -> trip.driver.id == user.id }
         is UserRole.Admin -> trips

@@ -1,61 +1,28 @@
-package com.example.schoolbustransport.presentation.dashboard
 
-import android.util.Log
+package com.example.schoolbustransport.presentation.dashboard
+import kotlinx.coroutines.tasks.await
+
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.schoolbustransport.data.network.ApiService
 import com.example.schoolbustransport.data.network.dto.ConversationDto
 import com.example.schoolbustransport.data.network.dto.MessageDto
-import com.example.schoolbustransport.data.network.dto.SendMessageRequest
-import com.example.schoolbustransport.data.repository.SessionManager
-import com.example.schoolbustransport.data.network.dto.UserLite
-import com.example.schoolbustransport.domain.model.UserRole
+import com.example.schoolbustransport.domain.repository.MessagesRepository
+import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 
 @HiltViewModel
 class MessagesViewModel @Inject constructor(
-    private val api: ApiService,
-    private val sessionManager: SessionManager
+        private val firestore: com.google.firebase.firestore.FirebaseFirestore,
+    private val messagesRepository: MessagesRepository,
+    private val auth: FirebaseAuth
 ) : ViewModel() {
-    private var socketManager: com.example.schoolbustransport.data.realtime.SocketManager? = null
-    private var currentChatUserId: Int? = null
-
-    fun initSocket(token: String, apiBaseUrl: String) {
-        if (socketManager == null) {
-            socketManager = com.example.schoolbustransport.data.realtime.SocketManager(apiBaseUrl, token)
-            socketManager?.connect()
-            socketManager?.on("message-broadcast") { args ->
-                if (args.isNotEmpty()) {
-                    val msgJson = args[0].toString()
-                    try {
-                        val gson = com.google.gson.Gson()
-                        val msg = gson.fromJson(msgJson, com.example.schoolbustransport.data.network.dto.MessageDto::class.java)
-                        if (msg.senderId == currentChatUserId || msg.receiverId == currentChatUserId) {
-                            _messages.value = _messages.value + msg
-                        }
-                    } catch (_: Exception) {}
-                }
-            }
-        }
-    }
-
-    val myUserId: StateFlow<Int?> = sessionManager.userIdFlow.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5000),
-        initialValue = null
-    )
-
-    val userRoleFlow: StateFlow<UserRole?> = sessionManager.userRoleFlow.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5000),
-        initialValue = null
-    )
 
     private val _conversations = MutableStateFlow<List<ConversationDto>>(emptyList())
     val conversations: StateFlow<List<ConversationDto>> = _conversations
@@ -69,85 +36,23 @@ class MessagesViewModel @Inject constructor(
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error
 
-    private val _availableRecipients = MutableStateFlow<List<UserLite>>(emptyList())
-    val availableRecipients: StateFlow<List<UserLite>> = _availableRecipients
+    val myUserId: StateFlow<String?> = MutableStateFlow(auth.currentUser?.uid)
 
-    private var allRecipients: List<UserLite> = emptyList()
+    private val _availableRecipients = MutableStateFlow<List<com.example.schoolbustransport.data.network.dto.UserInfo>>(emptyList())
+    val availableRecipients: StateFlow<List<com.example.schoolbustransport.data.network.dto.UserInfo>> = _availableRecipients
 
-    fun loadConversations() {
-        viewModelScope.launch {
-            _isLoading.value = true
-            _error.value = null
-            try {
-                val resp = api.getConversations()
-                val body = resp.body()
-                if (resp.isSuccessful && body != null) {
-                    _conversations.value = body
-                } else {
-                    _error.value = resp.errorBody()?.string()
-                }
-            } catch (e: Exception) {
-                _error.value = e.message
-            } finally {
-                _isLoading.value = false
-            }
-        }
-    }
-
-    fun loadMessages(otherUserId: Int) {
-        currentChatUserId = otherUserId
-        viewModelScope.launch {
-            _isLoading.value = true
-            _error.value = null
-            try {
-                val resp = api.getMessages(otherUserId.toString())
-                val body = resp.body()
-                if (resp.isSuccessful && body != null) {
-                    _messages.value = body
-                } else {
-                    _error.value = resp.errorBody()?.string()
-                }
-            } catch (e: Exception) {
-                _error.value = e.message
-            } finally {
-                _isLoading.value = false
-            }
-        }
-    }
-
-    fun sendMessage(otherUserId: Int, text: String, type: String, onSuccess: () -> Unit) {
-        viewModelScope.launch {
-            _isLoading.value = true
-            _error.value = null
-            try {
-                val resp = api.sendMessage(SendMessageRequest(receiverId = otherUserId, content = text, type = type))
-                if (resp.isSuccessful) {
-                    loadMessages(otherUserId)
-                    onSuccess()
-                } else {
-                    _error.value = resp.errorBody()?.string()
-                }
-            } catch (e: Exception) {
-                _error.value = e.message
-            } finally {
-                _isLoading.value = false
-            }
-        }
-    }
+    private var allRecipients: List<com.example.schoolbustransport.data.network.dto.UserInfo> = emptyList()
 
     fun loadAvailableRecipients() {
         viewModelScope.launch {
             _isLoading.value = true
             _error.value = null
             try {
-                val resp = api.getAvailableRecipients()
-                val body = resp.body()
-                if (resp.isSuccessful && body != null) {
-                    allRecipients = body
-                    _availableRecipients.value = allRecipients
-                } else {
-                    _error.value = resp.errorBody()?.string()
-                }
+                val currentUserId = auth.currentUser?.uid
+                val snapshot = firestore.collection("users").get().await()
+                val users = snapshot.documents.mapNotNull { it.toObject(com.example.schoolbustransport.data.network.dto.UserInfo::class.java) }
+                allRecipients = users.filter { it.id != currentUserId }
+                _availableRecipients.value = allRecipients
             } catch (e: Exception) {
                 _error.value = e.message
             } finally {
@@ -163,6 +68,39 @@ class MessagesViewModel @Inject constructor(
             allRecipients.filter {
                 it.name.contains(query, ignoreCase = true) || it.role.contains(query, ignoreCase = true)
             }
+        }
+    }
+
+    fun loadConversations() {
+        viewModelScope.launch {
+            _isLoading.value = true
+            messagesRepository.getConversations()
+                .catch { e -> _error.value = e.message }
+                .collectLatest { conversations ->
+                    _conversations.value = conversations
+                    _isLoading.value = false
+                }
+        }
+    }
+
+    fun loadMessages(otherUserId: String) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            messagesRepository.getMessages(otherUserId)
+                .catch { e -> _error.value = e.message }
+                .collectLatest { messages ->
+                    _messages.value = messages
+                    _isLoading.value = false
+                }
+        }
+    }
+
+    fun sendMessage(receiverId: String, content: String, type: String) {
+        viewModelScope.launch {
+            messagesRepository.sendMessage(receiverId, content, type)
+                .onFailure { e ->
+                    _error.value = e.message
+                }
         }
     }
 }

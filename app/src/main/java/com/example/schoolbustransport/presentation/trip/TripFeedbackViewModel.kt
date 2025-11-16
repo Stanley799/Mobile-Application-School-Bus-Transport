@@ -30,7 +30,7 @@ class TripFeedbackViewModel @Inject constructor(
         }
     }
 
-    fun submitFeedback(tripId: String, rating: Int, comment: String?, studentId: Int? = null) {
+    fun submitFeedback(tripId: String, rating: Int, comment: String?, studentId: String? = null) {
         viewModelScope.launch {
             _submitState.value = SubmitFeedbackState.Loading
             val result = tripRepository.submitTripFeedback(tripId, rating, comment, studentId)

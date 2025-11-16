@@ -1,19 +1,29 @@
 package com.example.schoolbustransport.presentation.profile
 
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.schoolbustransport.domain.model.User
-import com.example.schoolbustransport.domain.repository.UserRepository
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.storage.FirebaseStorage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
+
 
 @HiltViewModel
 class ProfileViewModel @Inject constructor(
-    private val userRepository: UserRepository
+    private val auth: FirebaseAuth,
+    private val firestore: FirebaseFirestore,
+    private val storage: FirebaseStorage
 ) : ViewModel() {
+
+    // Delete account from Firebase Auth and Firestore
+
     private val _user = MutableStateFlow<User?>(null)
     val user: StateFlow<User?> = _user
 
@@ -23,71 +33,85 @@ class ProfileViewModel @Inject constructor(
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error
 
-    fun loadUser(userId: String) {
+    init {
+        loadUserProfile()
+    }
+
+    private fun loadUserProfile() {
         viewModelScope.launch {
             _isLoading.value = true
-            _error.value = null
             try {
-                userRepository.getUserProfile(userId).collect {
-                    _user.value = it
-                    _isLoading.value = false
+                val userId = auth.currentUser?.uid
+                if (userId != null) {
+                    val snapshot = firestore.collection("users").document(userId).get().await()
+                    _user.value = snapshot.toObject(User::class.java)
                 }
             } catch (e: Exception) {
-                _error.value = e.message ?: "Failed to load user profile"
+                _error.value = e.message
+            } finally {
                 _isLoading.value = false
             }
         }
     }
 
-    fun updateProfile(userId: String, name: String?, phone: String?) {
+    fun updateProfile(userId: String, name: String, phone: String) {
         viewModelScope.launch {
             _isLoading.value = true
-            _error.value = null
-            val result = userRepository.updateUserProfile(userId, name, phone)
-            result.fold(
-                onSuccess = { _user.value = it },
-                onFailure = { _error.value = it.message }
-            )
-            _isLoading.value = false
+            try {
+                val updates = mapOf("name" to name, "phone" to phone)
+                firestore.collection("users").document(userId).update(updates).await()
+                loadUserProfile() // Refresh user data
+            } catch (e: Exception) {
+                _error.value = e.message
+            } finally {
+                _isLoading.value = false
+            }
         }
     }
 
-    fun uploadProfileImage(userId: String, imageFile: java.io.File) {
+    fun uploadProfileImage(userId: String, uri: Uri) {
         viewModelScope.launch {
             _isLoading.value = true
-            _error.value = null
-            val result = userRepository.uploadProfileImage(userId, imageFile)
-            result.fold(
-                onSuccess = { _user.value = it },
-                onFailure = { _error.value = it.message }
-            )
-            _isLoading.value = false
+            try {
+                val storageRef = storage.reference.child("profile_images/$userId")
+                storageRef.putFile(uri).await()
+                val imageUrl = storageRef.downloadUrl.await().toString()
+                firestore.collection("users").document(userId).update("image", imageUrl).await()
+                loadUserProfile() // Refresh user data
+            } catch (e: Exception) {
+                _error.value = e.message
+            } finally {
+                _isLoading.value = false
+            }
         }
     }
 
     fun deleteProfileImage(userId: String) {
         viewModelScope.launch {
             _isLoading.value = true
-            _error.value = null
-            val result = userRepository.deleteProfileImage(userId)
-            result.fold(
-                onSuccess = { _user.value = _user.value?.copy(image = null) },
-                onFailure = { _error.value = it.message }
-            )
-            _isLoading.value = false
+            try {
+                firestore.collection("users").document(userId).update("image", null).await()
+                loadUserProfile() // Refresh user data
+            } catch (e: Exception) {
+                _error.value = e.message
+            } finally {
+                _isLoading.value = false
+            }
         }
     }
 
-    fun deleteAccount(userId: String, onSuccess: () -> Unit) {
+    fun deleteAccount(userId: String, onComplete: () -> Unit) {
         viewModelScope.launch {
             _isLoading.value = true
-            _error.value = null
-            val result = userRepository.deleteAccount(userId)
-            result.fold(
-                onSuccess = { onSuccess() },
-                onFailure = { _error.value = it.message }
-            )
-            _isLoading.value = false
+            try {
+                firestore.collection("users").document(userId).delete().await()
+                auth.currentUser?.delete()?.await()
+                onComplete()
+            } catch (e: Exception) {
+                _error.value = e.message
+            } finally {
+                _isLoading.value = false
+            }
         }
     }
 }

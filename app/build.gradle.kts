@@ -1,15 +1,13 @@
-
 @file:Suppress("UnstableApiUsage")
 
 plugins {
-    alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
-    alias(libs.plugins.kotlin.compose)
-    alias(libs.plugins.hilt.android)
-    alias(libs.plugins.google.services)
-    alias(libs.plugins.ksp)
-    alias(libs.plugins.crashlytics)
-    alias(libs.plugins.kotlinx.serialization)
+    id("com.android.application")
+    id("org.jetbrains.kotlin.android")
+    id("com.google.devtools.ksp")
+    id("com.google.dagger.hilt.android")
+    id("com.google.gms.google-services")
+    id("com.google.firebase.crashlytics")
+    id("org.jetbrains.kotlin.plugin.serialization")
 }
 
 android {
@@ -27,7 +25,6 @@ android {
         vectorDrawables {
             useSupportLibrary = true
         }
-
     }
 
     buildTypes {
@@ -38,7 +35,6 @@ android {
                 "proguard-rules.pro"
             )
         }
-
         debug {
             isMinifyEnabled = false
         }
@@ -53,8 +49,13 @@ android {
         jvmTarget = "17"
     }
 
+    composeOptions {
+        kotlinCompilerExtensionVersion = "1.5.13"
+    }
+
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     packaging {
@@ -65,75 +66,72 @@ android {
 }
 
 dependencies {
-    // Core Android and Kotlin
+    // Core Android & Compose
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
-    implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.activity.compose)
-
-    // Jetpack Compose
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
-    implementation("androidx.compose.material:material-icons-extended-android:1.6.7")
-
-    // Navigation Compose
+    implementation(libs.androidx.compose.material.icons.extended)
     implementation(libs.androidx.navigation.compose)
-
-    // Hilt Dependency Injection
-    implementation(libs.hilt.android)
-    ksp(libs.hilt.compiler)
     implementation(libs.androidx.hilt.navigation.compose)
+    
+    // Lifecycle Compose
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.7.0")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.7.0")
 
-    // Room Database (can be kept for offline caching if desired, or removed)
+    // Room
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
     ksp(libs.androidx.room.compiler)
 
     // Coroutines
     implementation(libs.kotlinx.coroutines.android)
-    implementation(libs.kotlinx.coroutines.play.services)
 
-    // DataStore
+    // DataStore & Security
     implementation(libs.androidx.datastore.preferences)
-
-    // Security Crypto
     implementation(libs.androidx.security.crypto)
 
     // Firebase
     implementation(platform(libs.firebase.bom))
-    implementation("com.google.firebase:firebase-analytics-ktx")
-    implementation("com.google.firebase:firebase-messaging-ktx")
-    implementation("com.google.firebase:firebase-crashlytics-ktx")
-    implementation("com.google.firebase:firebase-auth-ktx")
-    implementation("com.google.firebase:firebase-firestore-ktx")
+    implementation(libs.firebase.analytics)
+    implementation(libs.firebase.auth)
+    implementation(libs.firebase.firestore)
+    implementation(libs.firebase.storage)
+    implementation(libs.firebase.messaging)
+    implementation(libs.firebase.crashlytics)
+    implementation("com.google.firebase:firebase-storage-ktx")
 
-    // osmdroid & OpenStreetMap
-    implementation("org.osmdroid:osmdroid-android:6.1.16")
-
-    // WorkManager
+    // Google Sign-In
+    implementation("com.google.android.gms:play-services-auth:21.0.0")
+    
+    // Other Libraries
+    implementation(libs.osmdroid.android)
     implementation(libs.androidx.work.ktx)
-
-    // Coil for image loading
     implementation(libs.coil.compose)
-
-    // Accompanist
     implementation(libs.accompanist.permissions)
     implementation(libs.accompanist.systemuicontroller)
-
-    // Serialization
     implementation(libs.kotlinx.serialization.json)
 
     // Testing
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
-    testImplementation(libs.mockk)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
+    testImplementation(libs.mockk)
+
+    // FINAL COMPREHENSIVE BUILD FIX - From User Instruction
+    // JavaPoet compatibility fix
+    implementation("com.squareup:javapoet:1.13.0")
+
+    // Hilt with explicit versions (overrides catalog)
+    implementation("com.google.dagger:hilt-android:2.48")
+    ksp("com.google.dagger:hilt-compiler:2.48")
 }

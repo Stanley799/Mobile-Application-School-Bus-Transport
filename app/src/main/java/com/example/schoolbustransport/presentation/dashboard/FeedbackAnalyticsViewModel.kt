@@ -29,11 +29,10 @@ class FeedbackAnalyticsViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 tripRepository.getTripFeedback(tripId).collect { list ->
-                    _feedbacks.update { list }
+                    _feedbacks.value = list
                 }
             } catch (e: Exception) {
-                // Error handling - could emit error state if needed
-                _feedbacks.update { emptyList() }
+                _feedbacks.value = emptyList()
             }
         }
     }

@@ -21,23 +21,22 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.example.schoolbustransport.domain.model.UserRole
+import com.example.schoolbustransport.domain.model.userRole
 import com.example.schoolbustransport.presentation.auth.AuthViewModel
-import java.time.OffsetDateTime
 import java.time.format.DateTimeFormatter
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatScreen(
-    navController: NavController, 
-    conversationId: String?, 
+    navController: NavController,
+    conversationId: String?,
     vm: MessagesViewModel = hiltViewModel(),
     authViewModel: AuthViewModel = hiltViewModel()
 ) {
-    val otherId = conversationId?.toIntOrNull()
     val user by authViewModel.loginState.collectAsState()
 
-    LaunchedEffect(otherId) {
-        otherId?.let { vm.loadMessages(it) }
+    LaunchedEffect(conversationId) {
+        conversationId?.let { vm.loadMessages(it) }
     }
 
     val messages by vm.messages.collectAsState()
@@ -57,10 +56,10 @@ fun ChatScreen(
             )
         },
         bottomBar = {
-            MessageInput(userRole = (user as? com.example.schoolbustransport.presentation.auth.LoginState.Success)?.user?.role, onSendMessage = {
+            MessageInput(userRole = (user as? com.example.schoolbustransport.presentation.auth.LoginState.Success)?.user?.userRole, onSendMessage = {
                 text, isNotification ->
-                if (otherId != null) {
-                    vm.sendMessage(otherId, text, if (isNotification) "notification" else "chat") {}
+                if (conversationId != null) {
+                    vm.sendMessage(conversationId, text, if (isNotification) "notification" else "chat")
                 }
             })
         }
@@ -88,7 +87,7 @@ fun ChatScreen(
                         MessageBubble(
                             text = m.content,
                             isFromMe = isFromMe,
-                            timestamp = m.timestamp,
+                            timestamp = m.timestamp?.toString() ?: "",
                             senderName = m.sender?.name ?: "Me",
                             isLast = m == messages.lastOrNull(),
                             status = if (isFromMe) "Sent" else "Received"
@@ -115,9 +114,6 @@ private fun MessageBubble(
 ) {
 	val backgroundColor = if (isFromMe) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant
 	val textColor = if (isFromMe) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
-	val time = try {
-		OffsetDateTime.parse(timestamp).format(DateTimeFormatter.ofPattern("HH:mm"))
-	} catch (_: Exception) { timestamp }
 
 	Column(
 		modifier = Modifier
@@ -146,7 +142,7 @@ private fun MessageBubble(
 			verticalAlignment = Alignment.CenterVertically
 		) {
 			Text(
-				text = time,
+				text = timestamp,
 				style = MaterialTheme.typography.labelSmall,
 				color = textColor.copy(alpha = 0.7f),
 				textAlign = TextAlign.Start

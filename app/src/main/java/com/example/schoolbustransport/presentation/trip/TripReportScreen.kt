@@ -14,6 +14,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -23,8 +24,6 @@ import androidx.core.app.NotificationCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.example.schoolbustransport.R
-import com.example.schoolbustransport.data.di.ServiceEntryPoint
-import dagger.hilt.android.EntryPointAccessors
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -59,7 +58,9 @@ fun TripReportScreen(
                 text = { Text("Download PDF") },
                 icon = { Icon(Icons.Default.CheckCircle, contentDescription = null) },
                 onClick = {
-                    downloadReport(scope, context, tripId)
+                    // Temporarily disabled after migration to Firebase
+                    // downloadReport(scope, context, tripId)
+                    Toast.makeText(context, "PDF Download is temporarily disabled.", Toast.LENGTH_SHORT).show()
                 }
             )
         }
@@ -101,6 +102,9 @@ fun TripReportScreen(
 }
 
 private fun downloadReport(scope: CoroutineScope, context: Context, tripId: String) {
+    // This function is temporarily disabled as it depends on the old ApiService.
+    // To re-enable, this needs to be implemented with a Firebase Cloud Function.
+    /*
     val api = EntryPointAccessors.fromApplication(context.applicationContext, ServiceEntryPoint::class.java).apiService()
     scope.launch(Dispatchers.IO) {
         try {
@@ -132,6 +136,7 @@ private fun downloadReport(scope: CoroutineScope, context: Context, tripId: Stri
             }
         }
     }
+    */
 }
 
 private fun showDownloadNotification(context: Context, fileName: String, filePath: String) {

@@ -1,50 +1,37 @@
 package com.example.schoolbustransport.data.repository
 
-import com.example.schoolbustransport.data.network.ApiService
-import com.example.schoolbustransport.data.network.dto.UpdateUserProfileRequest
-import com.example.schoolbustransport.data.network.dto.toUser
+import java.io.File
 import com.example.schoolbustransport.domain.model.User
 import com.example.schoolbustransport.domain.repository.UserRepository
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.storage.FirebaseStorage
+import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
-import okhttp3.MediaType.Companion.toMediaTypeOrNull
-import okhttp3.MultipartBody
-import okhttp3.RequestBody.Companion.asRequestBody
-import java.io.File
 import javax.inject.Inject
 
-class UserRepositoryImpl @Inject constructor(
-    private val apiService: ApiService
-) : UserRepository {
 
+class UserRepositoryImpl @Inject constructor(
+    private val firestore: FirebaseFirestore,
+    private val auth: FirebaseAuth,
+    private val storage: FirebaseStorage
+) : UserRepository {
     override fun getUserProfile(userId: String): Flow<User> = flow {
-        try {
-            // The AuthInterceptor will automatically add the token to this request.
-            val response = apiService.getUserProfile(userId)
-            val body = response.body()
-            if (response.isSuccessful && body != null) {
-                emit(body.toUser())
-            } else {
-                val errorBody = response.errorBody()?.string() ?: "Failed to fetch user profile"
-                throw Exception("API Error (${response.code()}): $errorBody")
-            }
-        } catch (e: Exception) {
-            // Re-throw with context
-            throw Exception("Failed to fetch user profile: ${e.message}", e)
-        }
+        val userDoc = firestore.collection("users").document(userId).get().await()
+        val user = userDoc.toObject(User::class.java) ?: throw IllegalStateException("User document not found")
+        emit(user)
     }
 
     override suspend fun updateUserProfile(userId: String, name: String?, phone: String?): Result<User> {
         return try {
-            val request = UpdateUserProfileRequest(name, phone)
-            val response = apiService.updateUserProfile(userId, request)
-            val body = response.body()
-            if (response.isSuccessful && body != null) {
-                Result.success(body.toUser())
-            } else {
-                val errorBody = response.errorBody()?.string() ?: "Failed to update user profile"
-                Result.failure(Exception("Update failed: $errorBody"))
-            }
+            val userRef = firestore.collection("users").document(userId)
+            val updates = mutableMapOf<String, Any?>()
+            name?.let { updates["name"] = it }
+            phone?.let { updates["phone"] = it }
+            userRef.update(updates).await()
+            val updatedUser = userRef.get().await().toObject(User::class.java) ?: throw IllegalStateException("User not found after update")
+            Result.success(updatedUser)
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -52,13 +39,9 @@ class UserRepositoryImpl @Inject constructor(
 
     override suspend fun deleteAccount(userId: String): Result<Unit> {
         return try {
-            val response = apiService.deleteAccount(userId)
-            if (response.isSuccessful) {
-                Result.success(Unit)
-            } else {
-                val errorBody = response.errorBody()?.string() ?: "Failed to delete account"
-                Result.failure(Exception("Delete failed: $errorBody"))
-            }
+            firestore.collection("users").document(userId).delete().await()
+            // Optionally delete from Auth and Storage if needed
+            Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -66,16 +49,12 @@ class UserRepositoryImpl @Inject constructor(
 
     override suspend fun uploadProfileImage(userId: String, imageFile: File): Result<User> {
         return try {
-            val reqFile = imageFile.asRequestBody("image/*".toMediaTypeOrNull())
-            val multipartBody = MultipartBody.Part.createFormData("image", imageFile.name, reqFile)
-            val response = apiService.uploadProfileImage(userId, multipartBody)
-            val responseBody = response.body()
-            if (response.isSuccessful && responseBody != null) {
-                Result.success(responseBody.toUser())
-            } else {
-                val errorBody = response.errorBody()?.string() ?: "Failed to upload image"
-                Result.failure(Exception("Upload failed: $errorBody"))
-            }
+            val storageRef = storage.reference.child("profile_images/$userId")
+            val uploadTask = storageRef.putFile(android.net.Uri.fromFile(imageFile)).await()
+            val downloadUrl = uploadTask.storage.downloadUrl.await().toString()
+            firestore.collection("users").document(userId).update("image", downloadUrl).await()
+            val updatedUser = firestore.collection("users").document(userId).get().await().toObject(User::class.java) ?: throw IllegalStateException("User not found after image upload")
+            Result.success(updatedUser)
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -83,13 +62,10 @@ class UserRepositoryImpl @Inject constructor(
 
     override suspend fun deleteProfileImage(userId: String): Result<Unit> {
         return try {
-            val response = apiService.deleteProfileImage(userId)
-            if (response.isSuccessful) {
-                Result.success(Unit)
-            } else {
-                val errorBody = response.errorBody()?.string() ?: "Failed to delete image"
-                Result.failure(Exception("Delete failed: $errorBody"))
-            }
+            val storageRef = storage.reference.child("profile_images/$userId")
+            storageRef.delete().await()
+            firestore.collection("users").document(userId).update("image", null).await()
+            Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
         }

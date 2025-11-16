@@ -24,7 +24,7 @@ fun NotificationHistorySearchScreen(vm: MessagesViewModel = hiltViewModel()) {
 
     val filteredConversations = conversations.filter {
         it.userName.contains(searchQuery.text, ignoreCase = true) ||
-        it.lastMessage.contains(searchQuery.text, ignoreCase = true)
+        (it.lastMessage?.contains(searchQuery.text, ignoreCase = true) == true)
     }
 
     LaunchedEffect(Unit) { vm.loadConversations() }
@@ -66,8 +66,8 @@ fun NotificationHistorySearchScreen(vm: MessagesViewModel = hiltViewModel()) {
                 items(filteredConversations) { convo ->
                     NotificationHistoryItem(
                         name = convo.userName,
-                        lastMessage = convo.lastMessage,
-                        timestamp = convo.lastMessageTime
+                        lastMessage = convo.lastMessage ?: "",
+                        timestamp = convo.lastMessageTime ?: ""
                     )
                 }
             }

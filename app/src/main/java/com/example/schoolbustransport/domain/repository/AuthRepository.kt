@@ -1,5 +1,6 @@
 package com.example.schoolbustransport.domain.repository
 
+import android.net.Uri
 import com.example.schoolbustransport.domain.model.User
 import kotlinx.coroutines.flow.Flow
 
@@ -10,7 +11,10 @@ import kotlinx.coroutines.flow.Flow
 interface AuthRepository {
     fun getFirebaseUserFlow(): Flow<com.google.firebase.auth.FirebaseUser?>
     suspend fun login(email: String, password: String): Result<User>
+    suspend fun loginWithGoogle(idToken: String): Result<User>
     suspend fun register(name: String, email: String, phone: String, password: String, role: String): Result<User>
+    suspend fun updateUserRole(role: String): Result<User>
+    suspend fun updateUserProfile(phone: String, imageUri: Uri?): Result<User>
     fun getLoggedInUser(): Flow<User?>
     suspend fun logout()
 }

@@ -1,1 +1,80 @@
-package com.example.schoolbustransport.data.repository\n\nimport com.example.schoolbustransport.domain.model.Trip\nimport com.example.schoolbustransport.domain.model.TripStatus\nimport com.example.schoolbustransport.domain.repository.TripRepository\nimport com.google.firebase.firestore.FieldValue\nimport com.google.firebase.firestore.FirebaseFirestore\nimport kotlinx.coroutines.channels.awaitClose\nimport kotlinx.coroutines.flow.Flow\nimport kotlinx.coroutines.flow.callbackFlow\nimport kotlinx.coroutines.tasks.await\nimport javax.inject.Inject\n\nclass TripRepositoryImpl @Inject constructor(\n    private val firestore: FirebaseFirestore\n) : TripRepository {\n\n    override fun getTrips(): Flow<List<Trip>> = callbackFlow {\n        val listenerRegistration = firestore.collection(\"trips\")\n            .addSnapshotListener { snapshot, error ->\n                if (error != null) {\n                    close(error)\n                    return@addSnapshotListener\n                }\n                if (snapshot != null) {\n                    val trips = snapshot.toObjects(Trip::class.java)\n                    trySend(trips)\n                }\n            }\n        awaitClose { listenerRegistration.remove() }\n    }\n\n    override fun getTripDetails(tripId: String): Flow<Trip?> = callbackFlow {\n        val listenerRegistration = firestore.collection(\"trips\").document(tripId)\n            .addSnapshotListener { snapshot, error ->\n                if (error != null) {\n                    close(error)\n                    return@addSnapshotListener\n                }\n                if (snapshot != null && snapshot.exists()) {\n                    val trip = snapshot.toObject(Trip::class.java)\n                    trySend(trip)\n                } else {\n                    trySend(null)\n                }\n            }\n        awaitClose { listenerRegistration.remove() }\n    }\n\n    override suspend fun startTrip(tripId: String): Result<Unit> {\n        return try {\n            firestore.collection(\"trips\").document(tripId).update(\"status\", TripStatus.IN_PROGRESS).await()\n            Result.success(Unit)\n        } catch (e: Exception) {\n            Result.failure(e)\n        }\n    }\n\n    override suspend fun endTrip(tripId: String): Result<Unit> {\n        return try {\n            firestore.collection(\"trips\").document(tripId).update(\"status\", TripStatus.COMPLETED).await()\n            Result.success(Unit)\n        } catch (e: Exception) {\n            Result.failure(e)\n        }\n    }\n\n    override suspend fun markAttendance(tripId: String, studentId: String, status: String): Result<Unit> {\n        return try {\n            // This is a simplified example. In a real app, you would have a more robust way of storing attendance.\n            firestore.collection(\"trips\").document(tripId).update(\"attendance.\$studentId\", status).await()\n            Result.success(Unit)\n        } catch (e: Exception) {\n            Result.failure(e)\n        }\n    }\n}\n
+package com.example.schoolbustransport.data.repository
+
+import com.example.schoolbustransport.domain.model.Trip
+import com.example.schoolbustransport.domain.model.TripStatus
+import com.example.schoolbustransport.domain.repository.TripRepository
+import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.tasks.await
+import javax.inject.Inject
+
+class TripRepositoryImpl @Inject constructor(
+    private val firestore: FirebaseFirestore
+) : TripRepository {
+
+    override fun getTrips(): Flow<List<Trip>> = callbackFlow {
+        val listenerRegistration = firestore.collection("trips")
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    close(error)
+                    return@addSnapshotListener
+                }
+                if (snapshot != null) {
+                    trySend(snapshot.toObjects(Trip::class.java))
+                }
+            }
+        awaitClose { listenerRegistration.remove() }
+    }
+
+    override fun getTripDetails(tripId: String): Flow<Trip?> = callbackFlow {
+        val listenerRegistration = firestore.collection("trips").document(tripId)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    close(error)
+                    return@addSnapshotListener
+                }
+                trySend(snapshot?.toObject(Trip::class.java))
+            }
+        awaitClose { listenerRegistration.remove() }
+    }
+
+    override suspend fun startTrip(tripId: String): Result<Unit> {
+        return try {
+            firestore.collection("trips").document(tripId).update("status", TripStatus.IN_PROGRESS).await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun endTrip(tripId: String): Result<Unit> {
+        return try {
+            firestore.collection("trips").document(tripId).update("status", TripStatus.COMPLETED).await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun markAttendance(tripId: String, studentId: String, status: String): Result<Unit> {
+        return try {
+            val field = "attendance.$studentId"
+            firestore.collection("trips").document(tripId).update(field, status).await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+    override fun getTripFeedback(tripId: String): Flow<List<com.example.schoolbustransport.domain.model.TripFeedback>> = callbackFlow {
+        // TODO: Implement actual Firestore feedback fetching
+        trySend(emptyList())
+        awaitClose {}
+    }
+
+    override suspend fun submitTripFeedback(tripId: String, rating: Int, comment: String?, studentId: String?): Result<Unit> {
+        // TODO: Implement actual Firestore feedback submission
+        return Result.success(Unit)
+    }
+}

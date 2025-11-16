@@ -1,4 +1,6 @@
 package com.example.schoolbustransport.presentation.trip
+import com.google.accompanist.permissions.hasPermission
+import com.google.accompanist.permissions.shouldShowRationale
 
 import android.Manifest
 import android.view.ViewGroup
@@ -15,8 +17,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
-import com.example.schoolbustransport.BuildConfig
-import com.example.schoolbustransport.data.realtime.SocketManager
+// import com.example.schoolbustransport.BuildConfig
+// import com.example.schoolbustransport.data.realtime.SocketManager
 import com.example.schoolbustransport.presentation.common.SessionViewModel
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.rememberMultiplePermissionsState
@@ -31,7 +33,6 @@ import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalPermissionsApi::class)
 @Composable
 fun LiveTrackingScreen(
-    navController: NavController,
     tripId: String? = null,
     sessionViewModel: SessionViewModel = hiltViewModel()
 ) {
@@ -43,7 +44,7 @@ fun LiveTrackingScreen(
     LaunchedEffect(tripId) {
         tripId?.let { tripViewModel.loadTripDetails(it) }
     }
-    val token by sessionViewModel.tokenFlow.collectAsState(initial = null)
+    // val token by sessionViewModel.tokenFlow.collectAsState(initial = null)
 
     val locationPermissions = rememberMultiplePermissionsState(
         permissions = listOf(
@@ -51,44 +52,13 @@ fun LiveTrackingScreen(
             Manifest.permission.ACCESS_FINE_LOCATION
         )
     )
+                        import com.google.accompanist.permissions.hasPermission
+                        import com.google.accompanist.permissions.shouldShowRationale
 
-    DisposableEffect(token, tripId) {
-        val currentToken = token
-        if (currentToken.isNullOrBlank() || tripId.isNullOrBlank()) {
-            return@DisposableEffect onDispose {}
-        }
-        val manager = SocketManager(apiBaseUrl = BuildConfig.BASE_URL, token = currentToken)
+    // TODO: Implement real-time bus location updates using Firebase (e.g., Firestore or Realtime Database)
+    // Removed all SocketManager and BASE_URL logic
 
-        manager.on("location-broadcast") { args ->
-            when (val payload = args.firstOrNull()) {
-                is JSONObject -> {
-                    val lat = runCatching { payload.getDouble("latitude") }.getOrNull()
-                    val lng = runCatching { payload.getDouble("longitude") }.getOrNull()
-                    if (lat != null && lng != null) busLocation = GeoPoint(lat, lng)
-                }
-                is Map<*, *> -> {
-                    val lat = (payload["latitude"] as? Number)?.toDouble()
-                    val lng = (payload["longitude"] as? Number)?.toDouble()
-                    if (lat != null && lng != null) busLocation = GeoPoint(lat, lng)
-                }
-            }
-        }
-        manager.on("error") { _ -> }
-
-        manager.connect()
-        val tripIdInt = tripId.toIntOrNull()
-        if (tripIdInt != null) {
-            manager.joinTrip(tripIdInt)
-        }
-
-        onDispose {
-            manager.off("location-broadcast")
-            manager.off("error")
-            manager.disconnect()
-        }
-    }
-
-    Scaffold(
+    package com.example.schoolbustransport.presentation.trip
         topBar = {
             TopAppBar(
                 title = { Text("Live Bus Tracking") },
@@ -108,6 +78,8 @@ fun LiveTrackingScreen(
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
                 ) {
                     Column(Modifier.padding(12.dp)) {
+    import com.google.accompanist.permissions.hasPermission
+    import com.google.accompanist.permissions.shouldShowRationale
                         Text(trip.route.name, style = MaterialTheme.typography.titleMedium)
                         Text("Bus: ${trip.bus.licensePlate}", style = MaterialTheme.typography.bodyMedium)
                         Text("Driver: ${trip.driver.name}", style = MaterialTheme.typography.bodyMedium)
@@ -201,14 +173,53 @@ fun LiveTrackingScreen(
             }
 
             // Permission request overlay
+            var showLocationRationale by remember { mutableStateOf(false) }
+            var showLocationDenied by remember { mutableStateOf(false) }
             if (!locationPermissions.allPermissionsGranted) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
                         Text("Location permission is needed to show the map.")
-                        Button(onClick = { locationPermissions.launchMultiplePermissionRequest() }, modifier = Modifier.padding(16.dp)) {
+                        Button(onClick = {
+                            val anyRationale = locationPermissions.permissions.any { it.shouldShowRationale }
+                            val anyDenied = locationPermissions.permissions.any { !it.hasPermission && !it.shouldShowRationale }
+                            if (anyRationale) {
+                                showLocationRationale = true
+                            } else if (anyDenied) {
+                                showLocationDenied = true
+                            } else {
+                                locationPermissions.launchMultiplePermissionRequest()
+                            }
+                        }, modifier = Modifier.padding(16.dp)) {
                             Text("Allow Location Access")
                         }
                     }
+                }
+                if (showLocationRationale) {
+                    AlertDialog(
+                        onDismissRequest = { showLocationRationale = false },
+                        title = { Text("Location Permission Needed") },
+                        text = { Text("We need your location to show the bus on the map.") },
+                        confirmButton = {
+                            TextButton(onClick = {
+                                showLocationRationale = false
+                                locationPermissions.launchMultiplePermissionRequest()
+                            }) { Text("Allow") }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { showLocationRationale = false }) { Text("Cancel") }
+                        }
+                    )
+                }
+                if (showLocationDenied) {
+                    AlertDialog(
+                        onDismissRequest = { showLocationDenied = false },
+                        title = { Text("Permission Denied") },
+                        text = { Text("Location access is permanently denied. Please enable it in app settings.") },
+                        confirmButton = {
+                            TextButton(onClick = { showLocationDenied = false }) { Text("OK") }
+                        },
+                        dismissButton = {}
+                    )
                 }
             }
         }

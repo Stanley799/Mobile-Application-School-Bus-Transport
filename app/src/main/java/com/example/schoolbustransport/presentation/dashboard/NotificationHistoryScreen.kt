@@ -1,6 +1,9 @@
 package com.example.schoolbustransport.presentation.dashboard
 
 import androidx.compose.foundation.layout.*
+import java.text.SimpleDateFormat
+import java.util.Locale
+import java.util.Date
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -36,8 +39,8 @@ fun NotificationHistoryScreen(vm: MessagesViewModel = hiltViewModel()) {
                 items(conversations) { convo ->
                     NotificationHistoryItem(
                         name = convo.userName,
-                        lastMessage = convo.lastMessage,
-                        timestamp = convo.lastMessageTime
+                        lastMessage = convo.lastMessage ?: "",
+                        timestamp = convo.lastMessageTime ?: ""
                     )
                 }
             }
@@ -65,7 +68,10 @@ fun NotificationHistoryItem(name: String, lastMessage: String, timestamp: String
             }
             Spacer(modifier = Modifier.width(12.dp))
             val time = try {
-                java.time.OffsetDateTime.parse(timestamp).format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"))
+                val inputFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault())
+                val outputFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
+                val date: Date? = inputFormat.parse(timestamp)
+                if (date != null) outputFormat.format(date) else timestamp
             } catch (_: Exception) { timestamp }
             Text(time, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
         }

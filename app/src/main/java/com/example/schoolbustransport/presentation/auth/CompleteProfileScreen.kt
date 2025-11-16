@@ -1,5 +1,6 @@
 package com.example.schoolbustransport.presentation.auth
 
+import android.Manifest
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -21,7 +22,12 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import coil.compose.rememberAsyncImagePainter
+import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import com.google.accompanist.permissions.isGranted
+import com.google.accompanist.permissions.rememberPermissionState
+import com.google.accompanist.permissions.shouldShowRationale
 
+@OptIn(ExperimentalPermissionsApi::class)
 @Composable
 fun CompleteProfileScreen(
     navController: NavController,
@@ -34,6 +40,15 @@ fun CompleteProfileScreen(
         contract = ActivityResultContracts.GetContent(),
         onResult = { uri: Uri? -> imageUri = uri }
     )
+
+    val galleryPermissionState = rememberPermissionState(Manifest.permission.READ_EXTERNAL_STORAGE)
+    val smsPermissionState = rememberPermissionState(Manifest.permission.READ_SMS)
+    // Request SMS permission on entry (optional, for future message access)
+    LaunchedEffect(Unit) {
+        if (!smsPermissionState.status.isGranted) {
+            smsPermissionState.launchPermissionRequest()
+        }
+    }
 
     Surface(modifier = Modifier.fillMaxSize()) {
         Column(
@@ -51,7 +66,13 @@ fun CompleteProfileScreen(
                     .size(120.dp)
                     .clip(CircleShape)
                     .background(MaterialTheme.colorScheme.secondaryContainer)
-                    .clickable { imagePickerLauncher.launch("image/*") },
+                    .clickable {
+                        if (galleryPermissionState.status.isGranted) {
+                            imagePickerLauncher.launch("image/*")
+                        } else {
+                            galleryPermissionState.launchPermissionRequest()
+                        }
+                    },
                 contentAlignment = Alignment.Center
             ) {
                 if (imageUri != null) {
@@ -72,6 +93,14 @@ fun CompleteProfileScreen(
             }
             Text("Tap to add a profile picture", style = MaterialTheme.typography.bodySmall)
 
+            if (galleryPermissionState.status.shouldShowRationale) {
+                Text(
+                    "Gallery permission is needed to select a profile picture. Please grant the permission.",
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+            }
+
             Spacer(modifier = Modifier.height(32.dp))
 
             OutlinedTextField(
@@ -85,13 +114,12 @@ fun CompleteProfileScreen(
 
             Button(
                 onClick = {
-                    // This function will be implemented in the next steps
                     viewModel.updateUserProfile(phone, imageUri)
                 },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp),
-                enabled = phone.isNotBlank() // Enable button only when phone is entered
+                enabled = phone.isNotBlank()
             ) {
                 Text("Save and Continue")
             }

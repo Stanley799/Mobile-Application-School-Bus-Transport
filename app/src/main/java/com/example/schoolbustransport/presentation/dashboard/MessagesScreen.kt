@@ -1,6 +1,9 @@
 package com.example.schoolbustransport.presentation.dashboard
 
 import androidx.compose.foundation.background
+import java.text.SimpleDateFormat
+import java.util.Locale
+import java.util.Date
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -26,6 +29,7 @@ fun MessagesScreen(navController: NavController, vm: MessagesViewModel = hiltVie
 	val conversations by vm.conversations.collectAsState()
 	val loading by vm.isLoading.collectAsState()
 	val error by vm.error.collectAsState()
+	val myUserId by vm.myUserId.collectAsState()
 
 	Scaffold(
 		topBar = {
@@ -68,12 +72,16 @@ fun MessagesScreen(navController: NavController, vm: MessagesViewModel = hiltVie
 					modifier = Modifier.fillMaxSize(),
 					contentPadding = PaddingValues(vertical = 8.dp)
 				) {
-					items(conversations) { convo ->
+					items(conversations.filter { it.userId != myUserId && !it.userId.isNullOrBlank() }) { convo ->
 						ConversationItem(
 							name = convo.userName,
-							lastMessage = convo.lastMessage,
-						timestamp = convo.lastMessageTime,
-							onClick = { navController.navigate("chat/${convo.userId}") }
+							lastMessage = convo.lastMessage ?: "",
+							timestamp = convo.lastMessageTime ?: "",
+							onClick = {
+								if (!convo.userId.isNullOrBlank()) {
+									navController.navigate("chat/${convo.userId}")
+								}
+							}
 						)
 					}
 				}
@@ -119,7 +127,11 @@ private fun ConversationItem(name: String, lastMessage: String, timestamp: Strin
 		}
 		Spacer(modifier = Modifier.width(12.dp))
 		val time = try {
-			java.time.OffsetDateTime.parse(timestamp).format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"))
+			// Try to parse ISO 8601 or fallback to raw string
+			val inputFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault())
+			val outputFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
+			val date: Date? = inputFormat.parse(timestamp)
+			if (date != null) outputFormat.format(date) else timestamp
 		} catch (_: Exception) { timestamp }
 		Text(time, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
 	}

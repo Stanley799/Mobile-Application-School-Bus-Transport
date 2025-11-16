@@ -1,5 +1,6 @@
 package com.example.schoolbustransport.presentation.auth
 
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.schoolbustransport.domain.model.User
@@ -15,6 +16,55 @@ import javax.inject.Inject
 class AuthViewModel @Inject constructor(
     private val authRepository: AuthRepository
 ) : ViewModel() {
+
+    fun loginWithGoogle(idToken: String) {
+        viewModelScope.launch {
+            _loginState.value = LoginState.Loading
+            val result = authRepository.loginWithGoogle(idToken)
+            result.fold(
+                onSuccess = { user ->
+                    _loginState.value = LoginState.Success(user)
+                },
+                onFailure = { error ->
+                    _loginState.value = LoginState.Error(error.message ?: "Google sign-in failed")
+                }
+            )
+        }
+    }
+
+    fun handleGoogleSignInError(message: String = "An unexpected error occurred during Google sign-in.") {
+        _loginState.value = LoginState.Error(message)
+    }
+
+    fun updateUserRole(role: String) {
+        viewModelScope.launch {
+            _loginState.value = LoginState.Loading
+            val result = authRepository.updateUserRole(role)
+            result.fold(
+                onSuccess = { updatedUser ->
+                    _loginState.value = LoginState.Success(updatedUser)
+                },
+                onFailure = { error ->
+                    _loginState.value = LoginState.Error(error.message ?: "Failed to update role")
+                }
+            )
+        }
+    }
+
+    fun updateUserProfile(phone: String, imageUri: Uri?) {
+        viewModelScope.launch {
+            _loginState.value = LoginState.Loading
+            val result = authRepository.updateUserProfile(phone, imageUri)
+            result.fold(
+                onSuccess = { updatedUser ->
+                    _loginState.value = LoginState.Success(updatedUser)
+                },
+                onFailure = { error ->
+                    _loginState.value = LoginState.Error(error.message ?: "Failed to update profile")
+                }
+            )
+        }
+    }
 
     private val _loginState = MutableStateFlow<LoginState>(LoginState.Loading) // Start with Loading
     val loginState: StateFlow<LoginState> = _loginState

@@ -1,7 +1,5 @@
 package com.example.schoolbustransport.presentation.trip
 
-import android.content.Context
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,18 +17,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
-import com.example.schoolbustransport.data.network.ApiService
 import com.example.schoolbustransport.domain.model.Trip
-import dagger.hilt.android.EntryPointAccessors
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -39,13 +30,8 @@ fun TripListScreen(
 	tripViewModel: TripViewModel = hiltViewModel()
 ) {
 	val tripState by tripViewModel.tripState.collectAsState()
-	val context = LocalContext.current
-	val scope = rememberCoroutineScope()
 
-	LaunchedEffect(Unit) {
-		// Fetch recent trips; backend applies role-based filtering via JWT
-		tripViewModel.loadTrips()
-	}
+	// The ViewModel now loads trips automatically in its init block
 
 	Scaffold(
 		topBar = {
@@ -87,13 +73,8 @@ fun TripListScreen(
 									onStart = { tripViewModel.startTrip(trip.id) },
 									onEnd = { tripViewModel.endTrip(trip.id) },
 									onOpenMap = { navController.navigate("live_tracking?tripId=${trip.id}") },
-									// Navigate to the new attendance screen
 									onOpenAttendance = { navController.navigate("attendance/${trip.id}") },
-									onDownloadReport = {
-										// Download the PDF report. For now we write to app files dir; can be moved to Downloads with SAF
-										downloadReport(scope, context, trip.id)
-									},
-									navController = navController // Pass navController to TripRow
+									navController = navController
 								)
 							}
 						}
@@ -105,21 +86,6 @@ fun TripListScreen(
 	}
 }
 
-private fun downloadReport(scope: CoroutineScope, context: Context, tripId: String) {
-	val api = EntryPointAccessors.fromApplication(context, ServiceEntryPoint::class.java).apiService()
-	scope.launch(Dispatchers.IO) {
-		val resp = api.getTripReport(tripId)
-		val body = resp.body()
-		if (resp.isSuccessful && body != null) {
-			val pdfBytes = body.bytes()
-			// Save under app files; in production use SAF to save under Downloads
-			val outFile = File(context.filesDir, "trip-report-${tripId}.pdf")
-			outFile.outputStream().use { it.write(pdfBytes) }
-		}
-	}
-}
-
-
 @Composable
 private fun TripRow(
 	trip: Trip,
@@ -127,8 +93,7 @@ private fun TripRow(
 	onEnd: () -> Unit,
 	onOpenMap: () -> Unit,
 	onOpenAttendance: () -> Unit,
-	onDownloadReport: () -> Unit,
-	navController: NavController? = null // Pass navController for navigation
+	navController: NavController
 ) {
 	Card(
 		modifier = Modifier.fillMaxWidth(),
@@ -148,8 +113,7 @@ private fun TripRow(
 				Button(onClick = onEnd, enabled = trip.status.name == "IN_PROGRESS") { Text("End Trip") }
 				TextButton(onClick = onOpenMap) { Text("Open Map") }
 				TextButton(onClick = onOpenAttendance) { Text("Attendance") }
-				TextButton(onClick = onDownloadReport) { Text("Download Report") }
-				if (trip.status.name == "COMPLETED" && navController != null) {
+				if (trip.status.name == "COMPLETED") {
 					TextButton(onClick = { navController.navigate("trip_report/${trip.id}") }) { Text("View Report") }
 				}
 			}

@@ -14,11 +14,11 @@ fun TripFeedbackDto.toDomain(): TripFeedback {
         } catch (e: Exception) { null }
     }
     return TripFeedback(
-        id = id,
-        tripId = tripId,
-        parentId = parentId,
-        studentId = studentId,
-        rating = rating,
+        id = id.toIntOrNull() ?: -1,
+        tripId = tripId?.toIntOrNull() ?: -1,
+        parentId = parentId?.toIntOrNull() ?: -1,
+        studentId = studentId?.toIntOrNull(),
+        rating = rating?.toInt() ?: 0,
         comment = comment,
         createdAt = date,
         parentName = parentName,

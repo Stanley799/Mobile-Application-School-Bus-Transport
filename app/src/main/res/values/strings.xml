@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">SchoolBusTransport</string>
+    <!-- Replace with your actual web client ID from Firebase Console -->
+    <string name="default_web_client_id">479324237991-bq2c2lhoqg6o9eice7t8kjfegjr6f9gp.apps.googleusercontent.com</string>
 </resources>

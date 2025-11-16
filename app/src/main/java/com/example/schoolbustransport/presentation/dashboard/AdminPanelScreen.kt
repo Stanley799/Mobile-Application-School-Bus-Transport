@@ -10,9 +10,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
-import com.example.schoolbustransport.data.network.dto.AdminBusItem
-import com.example.schoolbustransport.data.network.dto.AdminRouteItem
-import com.example.schoolbustransport.data.network.dto.DriverLiteDto
+import com.example.schoolbustransport.domain.model.Bus
+import com.example.schoolbustransport.domain.model.Route
+import com.example.schoolbustransport.domain.model.User
 
 @Composable
 fun AdminPanelScreen(navController: NavController, vm: AdminTripsViewModel = hiltViewModel()) {
@@ -24,11 +24,10 @@ fun AdminPanelScreen(navController: NavController, vm: AdminTripsViewModel = hil
 	val loading by vm.isLoading.collectAsState()
 	val error by vm.error.collectAsState()
 
-	var selectedBus by remember { mutableStateOf<AdminBusItem?>(null) }
-	var selectedRoute by remember { mutableStateOf<AdminRouteItem?>(null) }
-	var selectedDriver by remember { mutableStateOf<DriverLiteDto?>(null) }
+	var selectedBus by remember { mutableStateOf<Bus?>(null) }
+	var selectedRoute by remember { mutableStateOf<Route?>(null) }
+	var selectedDriver by remember { mutableStateOf<User?>(null) }
 	var tripName by remember { mutableStateOf("") }
-	var tripDateIso by remember { mutableStateOf("") }
 
 	Surface(modifier = Modifier.fillMaxSize()) {
 		Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
@@ -37,20 +36,18 @@ fun AdminPanelScreen(navController: NavController, vm: AdminTripsViewModel = hil
 			if (loading) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
 			if (!error.isNullOrBlank()) Text(error!!, color = MaterialTheme.colorScheme.error)
 
-			// Simple pickers using lists (can be replaced with proper dropdowns later)
+			// Simple pickers using lists
 			Text("Select Bus", style = MaterialTheme.typography.titleMedium)
-			SelectionList(items = buses, selected = selectedBus, onSelect = { selectedBus = it }) { it.numberPlate }
+			SelectionList(items = buses, selected = selectedBus, onSelect = { selectedBus = it }) { it.licensePlate }
 			Spacer(Modifier.height(8.dp))
 			Text("Select Route", style = MaterialTheme.typography.titleMedium)
-			SelectionList(items = routes, selected = selectedRoute, onSelect = { selectedRoute = it }) { it.routeName }
+			SelectionList(items = routes, selected = selectedRoute, onSelect = { selectedRoute = it }) { it.name }
 			Spacer(Modifier.height(8.dp))
 			Text("Select Driver", style = MaterialTheme.typography.titleMedium)
-			SelectionList(items = drivers, selected = selectedDriver, onSelect = { selectedDriver = it }) { d -> "${d.firstName ?: ""} ${d.lastName ?: ""}" }
+			SelectionList(items = drivers, selected = selectedDriver, onSelect = { selectedDriver = it }) { it.name }
 
 			Spacer(Modifier.height(12.dp))
 			OutlinedTextField(value = tripName, onValueChange = { tripName = it }, label = { Text("Trip name") }, modifier = Modifier.fillMaxWidth())
-			Spacer(Modifier.height(8.dp))
-			OutlinedTextField(value = tripDateIso, onValueChange = { tripDateIso = it }, label = { Text("Trip date ISO (YYYY-MM-DD)") }, modifier = Modifier.fillMaxWidth())
 
 			Spacer(Modifier.height(12.dp))
 			Button(
@@ -58,9 +55,7 @@ fun AdminPanelScreen(navController: NavController, vm: AdminTripsViewModel = hil
 					val bus = selectedBus ?: return@Button
 					val route = selectedRoute ?: return@Button
 					val driver = selectedDriver ?: return@Button
-					vm.createTrip(bus.id, route.id, driver.id, tripName, if (tripDateIso.isBlank()) null else tripDateIso) {
-						tripName = ""; tripDateIso = ""
-					}
+					vm.createTrip(bus, route, driver, tripName)
 				},
 				enabled = !loading && selectedBus != null && selectedRoute != null && selectedDriver != null && tripName.isNotBlank(),
 				modifier = Modifier.align(Alignment.End)

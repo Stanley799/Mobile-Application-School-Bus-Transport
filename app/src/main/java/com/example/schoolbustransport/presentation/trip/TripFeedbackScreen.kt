@@ -56,7 +56,7 @@ fun TripFeedbackScreen(
         Button(
             onClick = {
                 scope.launch {
-                    viewModel.submitFeedback(tripId, rating, comment.text, studentId)
+                    viewModel.submitFeedback(tripId, rating, comment.text, studentId?.toString())
                 }
             },
             enabled = rating > 0 && submitState !is SubmitFeedbackState.Loading

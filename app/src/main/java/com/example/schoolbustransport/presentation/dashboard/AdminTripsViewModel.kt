@@ -2,81 +2,78 @@ package com.example.schoolbustransport.presentation.dashboard
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.schoolbustransport.data.network.ApiService
-import com.example.schoolbustransport.data.network.dto.*
+import com.example.schoolbustransport.domain.model.Bus
+import com.example.schoolbustransport.domain.model.Route
+import com.example.schoolbustransport.domain.model.Trip
+import com.example.schoolbustransport.domain.model.User
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ktx.toObjects
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 
-/**
- * Admin scheduling VM: loads selectable lists and posts create-trip requests.
- */
 @HiltViewModel
 class AdminTripsViewModel @Inject constructor(
-	private val api: ApiService
+    private val firestore: FirebaseFirestore
 ) : ViewModel() {
-	val buses: StateFlow<List<AdminBusItem>> get() = _buses
-	private val _buses = MutableStateFlow<List<AdminBusItem>>(emptyList())
 
-	val routes: StateFlow<List<AdminRouteItem>> get() = _routes
-	private val _routes = MutableStateFlow<List<AdminRouteItem>>(emptyList())
+    private val _buses = MutableStateFlow<List<Bus>>(emptyList())
+    val buses: StateFlow<List<Bus>> = _buses
 
-	val drivers: StateFlow<List<DriverLiteDto>> get() = _drivers
-	private val _drivers = MutableStateFlow<List<DriverLiteDto>>(emptyList())
+    private val _routes = MutableStateFlow<List<Route>>(emptyList())
+    val routes: StateFlow<List<Route>> = _routes
 
-	val isLoading: StateFlow<Boolean> get() = _loading
-	private val _loading = MutableStateFlow(false)
+    private val _drivers = MutableStateFlow<List<User>>(emptyList())
+    val drivers: StateFlow<List<User>> = _drivers
 
-	val error: StateFlow<String?> get() = _error
-	private val _error = MutableStateFlow<String?>(null)
+    private val _isLoading = MutableStateFlow(false)
+    val isLoading: StateFlow<Boolean> = _isLoading
 
-	fun loadLists() {
-		viewModelScope.launch {
-			_loading.value = true
-			_error.value = null
-			try {
-				val busesResp = api.listBuses()
-				val routesResp = api.listRoutes()
-				val driversResp = api.listDrivers()
-				if (busesResp.isSuccessful && routesResp.isSuccessful && driversResp.isSuccessful) {
-					_buses.value = busesResp.body() ?: emptyList()
-					_routes.value = routesResp.body() ?: emptyList()
-					_drivers.value = driversResp.body() ?: emptyList()
-				} else {
-					_error.value = listOfNotNull(
-						busesResp.errorBody()?.string(),
-						routesResp.errorBody()?.string(),
-						driversResp.errorBody()?.string()
-					).firstOrNull() ?: "Failed to load admin lists"
-				}
-			} catch (e: Exception) {
-				_error.value = e.message
-			} finally {
-				_loading.value = false
-			}
-		}
-	}
+    private val _error = MutableStateFlow<String?>(null)
+    val error: StateFlow<String?> = _error
 
-	fun createTrip(busId: Int, routeId: Int, driverId: Int, tripName: String, tripDateIso: String?, onSuccess: () -> Unit) {
-		viewModelScope.launch {
-			_loading.value = true
-			_error.value = null
-			try {
-				val resp = api.createTrip(CreateTripRequest(
-					busId = busId,
-					routeId = routeId,
-					driverId = driverId,
-					tripName = tripName.ifBlank { null },
-					tripDate = tripDateIso
-				))
-				if (resp.isSuccessful) onSuccess() else _error.value = resp.errorBody()?.string()
-			} catch (e: Exception) {
-				_error.value = e.message
-			} finally {
-				_loading.value = false
-			}
-		}
-	}
+    fun loadLists() {
+        viewModelScope.launch {
+            _isLoading.value = true
+            try {
+                val busesSnapshot = firestore.collection("buses").get().await()
+                _buses.value = busesSnapshot.toObjects(Bus::class.java)
+
+                val routesSnapshot = firestore.collection("routes").get().await()
+                _routes.value = routesSnapshot.toObjects(Route::class.java)
+
+                val driversSnapshot = firestore.collection("users").whereEqualTo("role", "DRIVER").get().await()
+                _drivers.value = driversSnapshot.toObjects(User::class.java)
+
+            } catch (e: Exception) {
+                _error.value = e.message
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    fun createTrip(bus: Bus, route: Route, driver: User, tripName: String) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            try {
+                val trip = Trip(
+                    bus = bus,
+                    route = route,
+                    driver = driver,
+                    // name = tripName, // Assuming Trip has a name property
+                    // startTime = ... // Set start time, etc.
+                )
+                firestore.collection("trips").add(trip).await()
+                // Optionally clear form or navigate on success
+            } catch (e: Exception) {
+                _error.value = e.message
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
 }
