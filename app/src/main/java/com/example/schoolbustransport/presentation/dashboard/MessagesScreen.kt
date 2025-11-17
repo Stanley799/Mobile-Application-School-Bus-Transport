@@ -72,17 +72,40 @@ fun MessagesScreen(navController: NavController, vm: MessagesViewModel = hiltVie
 					modifier = Modifier.fillMaxSize(),
 					contentPadding = PaddingValues(vertical = 8.dp)
 				) {
-					items(conversations.filter { it.userId != myUserId && !it.userId.isNullOrBlank() }) { convo ->
-						ConversationItem(
-							name = convo.userName,
-							lastMessage = convo.lastMessage ?: "",
-							timestamp = convo.lastMessageTime ?: "",
-							onClick = {
-								if (!convo.userId.isNullOrBlank()) {
-									navController.navigate("chat/${convo.userId}")
-								}
+					val filteredConversations = conversations.filter { 
+						!it.userId.isNullOrBlank() && 
+						it.userId != myUserId && 
+						!it.userName.isNullOrBlank() &&
+						it.userName != "Unknown"
+					}
+					if (filteredConversations.isEmpty()) {
+						item {
+							Box(modifier = Modifier.fillMaxSize().padding(16.dp), contentAlignment = Alignment.Center) {
+								Text("No conversations found.", style = MaterialTheme.typography.bodyLarge)
 							}
-						)
+						}
+					} else {
+						items(filteredConversations) { convo ->
+							ConversationItem(
+								name = convo.userName ?: "Unknown",
+								lastMessage = convo.lastMessage ?: "",
+								timestamp = convo.lastMessageTime ?: "",
+								onClick = {
+									val userId = convo.userId
+									if (!userId.isNullOrBlank() && userId != myUserId) {
+										try {
+											navController.navigate("chat/$userId") {
+												// Prevent multiple instances
+												launchSingleTop = true
+											}
+										} catch (e: Exception) {
+											// Log error for debugging
+											android.util.Log.e("MessagesScreen", "Navigation error", e)
+										}
+									}
+								}
+							)
+						}
 					}
 				}
 			}

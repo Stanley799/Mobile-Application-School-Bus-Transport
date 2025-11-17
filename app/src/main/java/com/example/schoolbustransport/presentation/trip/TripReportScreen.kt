@@ -28,6 +28,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.io.File
+import com.example.schoolbustransport.data.repository.TripReportRepository
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -54,13 +55,28 @@ fun TripReportScreen(
             )
         },
         floatingActionButton = {
+            var downloading by remember { mutableStateOf(false) }
             ExtendedFloatingActionButton(
-                text = { Text("Download PDF") },
-                icon = { Icon(Icons.Default.CheckCircle, contentDescription = null) },
+                text = { Text(if (downloading) "Downloading..." else "Download PDF") },
+                icon = { 
+                    if (downloading) {
+                        CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                    } else {
+                        Icon(Icons.Default.CheckCircle, contentDescription = null)
+                    }
+                },
                 onClick = {
-                    // Temporarily disabled after migration to Firebase
-                    // downloadReport(scope, context, tripId)
-                    Toast.makeText(context, "PDF Download is temporarily disabled.", Toast.LENGTH_SHORT).show()
+                    downloading = true
+                    scope.launch {
+                        downloadReportFromFirebase(context, tripId) { success ->
+                            downloading = false
+                            if (success) {
+                                Toast.makeText(context, "PDF downloaded successfully", Toast.LENGTH_SHORT).show()
+                            } else {
+                                Toast.makeText(context, "Failed to download PDF. Report may not be ready yet.", Toast.LENGTH_LONG).show()
+                            }
+                        }
+                    }
                 }
             )
         }
@@ -73,13 +89,38 @@ fun TripReportScreen(
                 }
             } else {
                 Column(Modifier.fillMaxSize().padding(16.dp)) {
-                    Text("Route: ${currentTrip.route.name}", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        currentTrip.tripName.ifBlank { currentTrip.id.ifBlank { "Trip Report" } },
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+                    )
+                    Spacer(Modifier.height(16.dp))
+                    
+                    Card(modifier = Modifier.fillMaxWidth()) {
+                        Column(Modifier.padding(16.dp)) {
+                            Text("Trip Details", style = MaterialTheme.typography.titleMedium, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
+                            Spacer(Modifier.height(8.dp))
+                            Text("Route: ${currentTrip.route.name}")
                     Text("Bus: ${currentTrip.bus.licensePlate}")
                     Text("Driver: ${currentTrip.driver.name}")
-                    Text("Time: ${currentTrip.departureTime ?: "-"} - ${currentTrip.arrivalTime ?: "-"}")
+                            Text("Departure: ${currentTrip.departureTime ?: "-"}")
+                            if (currentTrip.startTime != null) {
+                                Text("Start Time: ${java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.getDefault()).format(currentTrip.startTime.toDate())}")
+                            }
+                            if (currentTrip.endTime != null) {
+                                Text("End Time: ${java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.getDefault()).format(currentTrip.endTime.toDate())}")
+                            }
+                            Text("Status: ${currentTrip.status.name}")
+                        }
+                    }
+                    
                     Spacer(Modifier.height(16.dp))
-                    Text("Attendance", style = MaterialTheme.typography.titleMedium)
+                    Text("Attendance List", style = MaterialTheme.typography.titleMedium, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
                     Spacer(Modifier.height(8.dp))
+                    
+                    if (currentTrip.students.isEmpty()) {
+                        Text("No students on this trip", style = MaterialTheme.typography.bodyMedium)
+                    } else {
                     LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         items(currentTrip.students) { student ->
                             Card(modifier = Modifier.fillMaxWidth()) {
@@ -87,10 +128,21 @@ fun TripReportScreen(
                                     Modifier.padding(12.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Color(0xFF2E7D32))
-                                    Spacer(Modifier.width(8.dp))
+                                        Icon(
+                                            Icons.Default.CheckCircle,
+                                            contentDescription = null,
+                                            tint = Color(0xFF2E7D32),
+                                            modifier = Modifier.size(24.dp)
+                                        )
+                                        Spacer(Modifier.width(12.dp))
+                                        Column {
                                     val displayName = student.name.ifBlank { "Student ${student.id}" }
-                                    Text(displayName)
+                                            Text(displayName, style = MaterialTheme.typography.bodyLarge)
+                                            if (student.grade != null) {
+                                                Text("Grade: ${student.grade}", style = MaterialTheme.typography.bodySmall)
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -101,42 +153,47 @@ fun TripReportScreen(
     }
 }
 
-private fun downloadReport(scope: CoroutineScope, context: Context, tripId: String) {
-    // This function is temporarily disabled as it depends on the old ApiService.
-    // To re-enable, this needs to be implemented with a Firebase Cloud Function.
-    /*
-    val api = EntryPointAccessors.fromApplication(context.applicationContext, ServiceEntryPoint::class.java).apiService()
-    scope.launch(Dispatchers.IO) {
+private fun downloadReportFromFirebase(
+    context: Context,
+    tripId: String,
+    onComplete: (Boolean) -> Unit
+) {
+    val repository = TripReportRepository(
+        com.google.firebase.firestore.FirebaseFirestore.getInstance(),
+        com.google.firebase.storage.FirebaseStorage.getInstance(),
+        com.google.firebase.auth.FirebaseAuth.getInstance()
+    )
+    
+    CoroutineScope(Dispatchers.IO).launch {
         try {
-            val resp = api.getTripReport(tripId)
-            val body = resp.body()
-            if (resp.isSuccessful && body != null) {
-                val pdfBytes = body.bytes()
-                val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+            val report = repository.getTripReport(tripId)
+            if (report == null) {
+                launch(Dispatchers.Main) {
+                    onComplete(false)
+                }
+                return@launch
+            }
+            
+            val downloadsDir = android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS)
                 val outFile = File(downloadsDir, "trip-report-$tripId.pdf")
-                try {
-                    outFile.outputStream().use { it.write(pdfBytes) }
+            
+            val result = repository.downloadReport(report, outFile)
+            result.onSuccess {
                     launch(Dispatchers.Main) {
                         showDownloadNotification(context, outFile.name, outFile.absolutePath)
-                        Toast.makeText(context, "PDF saved to Downloads folder", Toast.LENGTH_LONG).show()
+                    onComplete(true)
                     }
-                } catch (e: Exception) {
+            }.onFailure {
                     launch(Dispatchers.Main) {
-                        Toast.makeText(context, "Failed to save PDF: ${e.message}", Toast.LENGTH_LONG).show()
-                    }
-                }
-            } else {
-                launch(Dispatchers.Main) {
-                    Toast.makeText(context, "Failed to download PDF: ${resp.message()}", Toast.LENGTH_LONG).show()
+                    onComplete(false)
                 }
             }
         } catch (e: Exception) {
             launch(Dispatchers.Main) {
-                Toast.makeText(context, "Failed to download PDF: ${e.message}", Toast.LENGTH_LONG).show()
+                onComplete(false)
             }
         }
     }
-    */
 }
 
 private fun showDownloadNotification(context: Context, fileName: String, filePath: String) {

@@ -25,9 +25,14 @@ import com.example.schoolbustransport.presentation.auth.*
 import com.example.schoolbustransport.presentation.dashboard.AdminPanelScreen
 import com.example.schoolbustransport.presentation.dashboard.ChatScreen
 import com.example.schoolbustransport.presentation.dashboard.DashboardScreen
+import com.example.schoolbustransport.presentation.dashboard.AddStudentScreen
+import com.example.schoolbustransport.presentation.dashboard.AdminStudentsScreen
+import com.example.schoolbustransport.presentation.dashboard.DriverMyTripScreen
 import com.example.schoolbustransport.presentation.dashboard.ManageStudentsScreen
 import com.example.schoolbustransport.presentation.dashboard.MessagesScreen
 import com.example.schoolbustransport.presentation.dashboard.NewMessageScreen
+import com.example.schoolbustransport.presentation.dashboard.TripReportsListScreen
+import com.example.schoolbustransport.presentation.dashboard.ViewMyStudentsScreen
 import com.example.schoolbustransport.presentation.notifications.NotificationsScreen
 import com.example.schoolbustransport.presentation.profile.ProfileScreen
 import com.example.schoolbustransport.presentation.schedule.*
@@ -196,8 +201,17 @@ private fun androidx.navigation.NavGraphBuilder.addAppDestinations(
     composable("profile") {
         ProfileScreen(navController = navController, authViewModel = authViewModel)
     }
+    composable("add_student") {
+        AddStudentScreen(navController = navController)
+    }
+    composable("view_my_students") {
+        ViewMyStudentsScreen(navController = navController)
+    }
+    composable("trip_reports") {
+        TripReportsListScreen(navController = navController)
+    }
     composable("manage_students") {
-        ManageStudentsScreen(navController = navController)
+        AdminStudentsScreen(navController = navController)
     }
     composable("manage_trips") {
         ManageTripsScreen(navController = navController)
@@ -219,6 +233,9 @@ private fun androidx.navigation.NavGraphBuilder.addAppDestinations(
     ) { backStackEntry ->
         val tripId = backStackEntry.arguments?.getString("tripId") ?: return@composable
         TripReportScreen(tripId = tripId, navController = navController)
+    }
+    composable("driver_my_trip") {
+        DriverMyTripScreen(navController = navController)
     }
 }
 

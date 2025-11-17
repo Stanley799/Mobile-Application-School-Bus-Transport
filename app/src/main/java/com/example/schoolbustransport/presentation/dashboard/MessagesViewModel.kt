@@ -36,7 +36,16 @@ class MessagesViewModel @Inject constructor(
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error
 
-    val myUserId: StateFlow<String?> = MutableStateFlow(auth.currentUser?.uid)
+    private val _myUserId = MutableStateFlow<String?>(null)
+    val myUserId: StateFlow<String?> = _myUserId
+
+    init {
+        _myUserId.value = auth.currentUser?.uid
+        // Update when auth state changes
+        auth.addAuthStateListener { firebaseAuth ->
+            _myUserId.value = firebaseAuth.currentUser?.uid
+        }
+    }
 
     private val _availableRecipients = MutableStateFlow<List<com.example.schoolbustransport.data.network.dto.UserInfo>>(emptyList())
     val availableRecipients: StateFlow<List<com.example.schoolbustransport.data.network.dto.UserInfo>> = _availableRecipients
@@ -97,10 +106,20 @@ class MessagesViewModel @Inject constructor(
 
     fun sendMessage(receiverId: String, content: String, type: String) {
         viewModelScope.launch {
-            messagesRepository.sendMessage(receiverId, content, type)
-                .onFailure { e ->
-                    _error.value = e.message
-                }
+            _isLoading.value = true
+            _error.value = null
+            try {
+                messagesRepository.sendMessage(receiverId, content, type)
+                    .onFailure { e ->
+                        _error.value = "Failed to send message: ${e.message ?: "Unknown error"}"
+                    }
+                // Reload messages after sending
+                loadMessages(receiverId)
+            } catch (e: Exception) {
+                _error.value = "Error: ${e.message ?: "Unknown error"}"
+            } finally {
+                _isLoading.value = false
+            }
         }
     }
 }

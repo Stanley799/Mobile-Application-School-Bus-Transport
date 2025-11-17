@@ -82,6 +82,7 @@ fun DashboardScreen(
             ) {
                 val trips = (tripState as? com.example.schoolbustransport.presentation.trip.TripState.Success)?.trips ?: emptyList()
                 val currentTrip = trips.firstOrNull { it.status == TripStatus.IN_PROGRESS }
+                    ?: trips.sortedByDescending { it.startTime }.firstOrNull() // Show latest trip if no active trip
                 val upcomingTrips = trips.filter { it.status == TripStatus.SCHEDULED }
 
                 if (currentTrip != null) {
@@ -102,11 +103,11 @@ fun DashboardScreen(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                Text("My Buses", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Text("My Space", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.height(16.dp))
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    items(3) { BusStatusCard(it) }
-                }
+                
+                // Role-specific tasks
+                MySpaceSection(user = user, navController = navController, trips = trips)
 
                 Spacer(modifier = Modifier.height(24.dp))
 
@@ -185,14 +186,129 @@ fun CurrentTripCard(trip: Trip?) {
                 Text("Current Trip", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.height(4.dp))
                 if (trip != null) {
+                    Text(
+                        trip.tripName.ifBlank { trip.id.ifBlank { "Trip ${trip.route.name}" } },
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.titleSmall
+                    )
                     Text("Bus: ${trip.bus.licensePlate}", fontWeight = FontWeight.Medium)
                     Text("Driver: ${trip.driver.name}")
-                    Text("Time: ${trip.departureTime ?: "-"} - ${trip.arrivalTime ?: "-"}")
+                    Text("Time: ${trip.departureTime ?: "-"}")
                     Text("Route: ${trip.route.name}")
                 } else {
                     Text("No active trip.", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun MySpaceSection(user: User, navController: NavController, trips: List<Trip>) {
+    val userRole = UserRole.fromString(user.role)
+    
+    when (userRole) {
+        is UserRole.Parent -> {
+            ParentSpaceSection(navController = navController)
+        }
+        is UserRole.Admin -> {
+            AdminSpaceSection(navController = navController)
+        }
+        is UserRole.Driver -> {
+            DriverSpaceSection(navController = navController, trips = trips)
+        }
+    }
+}
+
+@Composable
+fun ParentSpaceSection(navController: NavController) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        MySpaceCard(
+            title = "Add Student",
+            icon = Icons.Default.PersonAdd,
+            onClick = { navController.navigate("add_student") }
+        )
+        MySpaceCard(
+            title = "View My Students",
+            icon = Icons.Default.People,
+            onClick = { navController.navigate("view_my_students") }
+        )
+        MySpaceCard(
+            title = "View Student Trips",
+            icon = Icons.Default.DirectionsBus,
+            onClick = { navController.navigate("trips_list") }
+        )
+        MySpaceCard(
+            title = "Download Trip Report",
+            icon = Icons.Default.Download,
+            onClick = { navController.navigate("trip_reports") }
+        )
+    }
+}
+
+@Composable
+fun AdminSpaceSection(navController: NavController) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        MySpaceCard(
+            title = "Manage Routes",
+            icon = Icons.Default.Map,
+            onClick = { navController.navigate("manage_routes") }
+        )
+        MySpaceCard(
+            title = "Manage Buses",
+            icon = Icons.Default.DirectionsBus,
+            onClick = { navController.navigate("manage_buses") }
+        )
+        MySpaceCard(
+            title = "Students",
+            icon = Icons.Default.People,
+            onClick = { navController.navigate("manage_students") }
+        )
+        MySpaceCard(
+            title = "Manage Drivers",
+            icon = Icons.Default.Person,
+            onClick = { navController.navigate("manage_drivers") }
+        )
+        MySpaceCard(
+            title = "Manage Trips",
+            icon = Icons.Default.CalendarToday,
+            onClick = { navController.navigate("manage_trips") }
+        )
+    }
+}
+
+@Composable
+fun DriverSpaceSection(navController: NavController, trips: List<Trip>) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        MySpaceCard(
+            title = "My Trip",
+            icon = Icons.Default.DirectionsBus,
+            onClick = { navController.navigate("driver_my_trip") }
+        )
+        MySpaceCard(
+            title = "Download Trip Report",
+            icon = Icons.Default.Download,
+            onClick = { navController.navigate("trip_reports") }
+        )
+    }
+}
+
+@Composable
+fun MySpaceCard(title: String, icon: androidx.compose.ui.graphics.vector.ImageVector, onClick: () -> Unit) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(icon, contentDescription = title, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
+            Spacer(modifier = Modifier.width(16.dp))
+            Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium)
         }
     }
 }
@@ -239,7 +355,7 @@ fun UpcomingTripsCard(trips: List<Trip>, modifier: Modifier = Modifier) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Default.DirectionsBus, contentDescription = null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("${trip.departureTime ?: "-"} - ${trip.arrivalTime ?: "-"} | ${trip.route.name}", fontSize = 14.sp)
+                        Text("${trip.departureTime ?: "-"} | ${trip.route.name}", fontSize = 14.sp)
                     }
                 }
             }

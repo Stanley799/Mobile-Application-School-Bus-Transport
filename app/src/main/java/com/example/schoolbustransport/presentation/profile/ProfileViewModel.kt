@@ -72,14 +72,17 @@ class ProfileViewModel @Inject constructor(
     fun uploadProfileImage(userId: String, uri: Uri) {
         viewModelScope.launch {
             _isLoading.value = true
+            _error.value = null
             try {
-                val storageRef = storage.reference.child("profile_images/$userId")
-                storageRef.putFile(uri).await()
-                val imageUrl = storageRef.downloadUrl.await().toString()
-                firestore.collection("users").document(userId).update("image", imageUrl).await()
+                val storageRef = storage.reference.child("profile-images/$userId.jpg")
+                val uploadTask = storageRef.putFile(uri)
+                uploadTask.await()
+                val imageUrl = storageRef.downloadUrl.await()
+                firestore.collection("users").document(userId).update("image", imageUrl.toString()).await()
                 loadUserProfile() // Refresh user data
             } catch (e: Exception) {
-                _error.value = e.message
+                _error.value = "Failed to upload image: ${e.message ?: "Unknown error"}"
+                android.util.Log.e("ProfileViewModel", "Image upload error", e)
             } finally {
                 _isLoading.value = false
             }

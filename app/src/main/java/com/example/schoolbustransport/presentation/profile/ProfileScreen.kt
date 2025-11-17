@@ -33,10 +33,9 @@ import androidx.navigation.NavController
 import coil.compose.rememberAsyncImagePainter
 import com.example.schoolbustransport.presentation.auth.AuthViewModel
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
-import com.google.accompanist.permissions.hasPermission
-import com.google.accompanist.permissions.shouldShowRationale
-import com.google.accompanist.permissions.shouldShowRationale
+import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
+import com.google.accompanist.permissions.shouldShowRationale
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalPermissionsApi::class)
 @Composable
@@ -82,7 +81,11 @@ fun ProfileScreen(
     var name by remember(user) { mutableStateOf(user?.name ?: "") }
     var phone by remember(user) { mutableStateOf(user?.phone ?: "") }
 
-    val galleryPermissionState = rememberPermissionState(Manifest.permission.READ_EXTERNAL_STORAGE)
+    val galleryPermissionState = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+        rememberPermissionState(Manifest.permission.READ_MEDIA_IMAGES)
+    } else {
+        rememberPermissionState(Manifest.permission.READ_EXTERNAL_STORAGE)
+    }
 
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent(),
@@ -165,47 +168,16 @@ fun ProfileScreen(
                         .clip(CircleShape)
                         .background(MaterialTheme.colorScheme.secondaryContainer)
                         .clickable(enabled = isEditing) {
-                            sendDebugLog("ProfileScreen: hasPermission=${galleryPermissionState.hasPermission}, shouldShowRationale=${galleryPermissionState.shouldShowRationale}")
-                            if (galleryPermissionState.hasPermission) {
+                            if (galleryPermissionState.status.isGranted) {
                                 imagePickerLauncher.launch("image/*")
-                            } else if (galleryPermissionState.shouldShowRationale) {
+                            } else if (galleryPermissionState.status.shouldShowRationale) {
                                 showGalleryRationale = true
-                            } else if (!galleryPermissionState.hasPermission && !galleryPermissionState.shouldShowRationale) {
-                                // Permission permanently denied
-                                showGalleryDenied = true
                             } else {
                                 galleryPermissionState.launchPermissionRequest()
                             }
                         },
                     contentAlignment = Alignment.Center
                 ) {
-                                    if (showGalleryRationale) {
-                                        AlertDialog(
-                                            onDismissRequest = { showGalleryRationale = false },
-                                            title = { Text("Gallery Permission Needed") },
-                                            text = { Text("We need access to your gallery to let you pick a profile picture.") },
-                                            confirmButton = {
-                                                TextButton(onClick = {
-                                                    showGalleryRationale = false
-                                                    galleryPermissionState.launchPermissionRequest()
-                                                }) { Text("Allow") }
-                                            },
-                                            dismissButton = {
-                                                TextButton(onClick = { showGalleryRationale = false }) { Text("Cancel") }
-                                            }
-                                        )
-                                    }
-                                    if (showGalleryDenied) {
-                                        AlertDialog(
-                                            onDismissRequest = { showGalleryDenied = false },
-                                            title = { Text("Permission Denied") },
-                                            text = { Text("Gallery access is permanently denied. Please enable it in app settings.") },
-                                            confirmButton = {
-                                                TextButton(onClick = { showGalleryDenied = false }) { Text("OK") }
-                                            },
-                                            dismissButton = {}
-                                        )
-                                    }
                     val painter = rememberAsyncImagePainter(model = user?.image)
                     Image(
                         painter = painter,
@@ -220,14 +192,42 @@ fun ProfileScreen(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
+                if (showGalleryRationale) {
+                    AlertDialog(
+                        onDismissRequest = { showGalleryRationale = false },
+                        title = { Text("Gallery Permission Needed") },
+                        text = { Text("We need access to your gallery to let you pick a profile picture.") },
+                        confirmButton = {
+                            TextButton(onClick = {
+                                showGalleryRationale = false
+                                galleryPermissionState.launchPermissionRequest()
+                            }) { Text("Allow") }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { showGalleryRationale = false }) { Text("Cancel") }
+                        }
+                    )
+                }
+                if (showGalleryDenied) {
+                    AlertDialog(
+                        onDismissRequest = { showGalleryDenied = false },
+                        title = { Text("Permission Denied") },
+                        text = { Text("Gallery access is permanently denied. Please enable it in app settings.") },
+                        confirmButton = {
+                            TextButton(onClick = { showGalleryDenied = false }) { Text("OK") }
+                        },
+                        dismissButton = {}
+                    )
+                }
+
                 Card(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         ProfileInfoItem(Icons.Default.Person, "Name", name, isEditing) { name = it }
-                        Divider()
+                        HorizontalDivider()
                         ProfileInfoItem(Icons.Default.Email, "Email", user?.email ?: "", false) {}
-                        Divider()
+                        HorizontalDivider()
                         ProfileInfoItem(Icons.Default.Phone, "Phone", phone, isEditing) { phone = it }
-                        Divider()
+                        HorizontalDivider()
                         ProfileInfoItem(Icons.Default.Work, "Role", user?.role ?: "", false) {}
                     }
                 }

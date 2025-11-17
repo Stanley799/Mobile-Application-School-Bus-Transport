@@ -82,7 +82,7 @@ fun ManageStudentsScreen(navController: NavController, viewModel: StudentsViewMo
             Button(
                 onClick = {
                     if (newStudentName.isNotBlank() && newStudentSchool.isNotBlank() && newStudentGrade.isNotBlank()) {
-                        viewModel.createStudent(newStudentName, newStudentSchool, newStudentGrade)
+                        viewModel.createStudent(newStudentName, 0, "", newStudentGrade, "")
                         // Clear fields after creation
                         newStudentName = ""
                         newStudentSchool = ""

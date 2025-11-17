@@ -5,7 +5,9 @@ package com.example.schoolbustransport.domain.model
  */
 data class Bus(
     val id: String = "",
-    val licensePlate: String = "",
+    val name: String = "", // Bus name
+    val licensePlate: String = "", // Number plate
+    val numberOfSeats: Int = 0, // Number of seats
     val model: String? = null,
-    val capacity: Int = 0
+    val capacity: Int = 0 // Alias for numberOfSeats
 )

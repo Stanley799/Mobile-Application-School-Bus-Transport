@@ -56,7 +56,7 @@ fun LoginScreen(
     val context = LocalContext.current
     val activity = context as? Activity
 
-    // Configure Google Sign-In
+    // Configure Google Sign-In with account picker
     val gso = remember {
         GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
             .requestIdToken(context.getString(R.string.default_web_client_id))
@@ -79,7 +79,11 @@ fun LoginScreen(
                 viewModel.handleGoogleSignInError("Google sign-in failed: idToken was null.")
             }
         } catch (e: ApiException) {
-            viewModel.handleGoogleSignInError("Google sign-in failed with status code: ${e.statusCode}")
+            // Status code 12501 is SIGN_IN_CANCELLED
+            if (e.statusCode != 12501) {
+                viewModel.handleGoogleSignInError("Google sign-in failed with status code: ${e.statusCode}")
+            }
+            // If cancelled (12501), silently ignore
         } catch (e: Exception) {
             viewModel.handleGoogleSignInError(e.localizedMessage ?: "An unknown error occurred.")
         }
@@ -147,8 +151,11 @@ fun LoginScreen(
                 Spacer(modifier = Modifier.height(16.dp))
                 Button(
                     onClick = {
-                        val signInIntent = googleSignInClient.signInIntent
-                        googleSignInLauncher.launch(signInIntent)
+                        // Sign out first to show account picker
+                        googleSignInClient.signOut().addOnCompleteListener {
+                            val signInIntent = googleSignInClient.signInIntent
+                            googleSignInLauncher.launch(signInIntent)
+                        }
                     },
                     modifier = Modifier
                         .fillMaxWidth()

@@ -27,16 +27,19 @@ import com.example.schoolbustransport.domain.model.Trip
 @Composable
 fun TripListScreen(
 	navController: NavController,
-	tripViewModel: TripViewModel = hiltViewModel()
+	tripViewModel: TripViewModel = hiltViewModel(),
+	authViewModel: com.example.schoolbustransport.presentation.auth.AuthViewModel = hiltViewModel()
 ) {
 	val tripState by tripViewModel.tripState.collectAsState()
+	val loginState by authViewModel.loginState.collectAsState()
+	val currentUser = (loginState as? com.example.schoolbustransport.presentation.auth.LoginState.Success)?.user
 
 	// The ViewModel now loads trips automatically in its init block
 
 	Scaffold(
 		topBar = {
 			TopAppBar(
-				title = { Text("Trips") },
+				title = { Text("Student Trips") },
 				navigationIcon = {
 					IconButton(onClick = { navController.popBackStack() }) {
 						Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -54,20 +57,56 @@ fun TripListScreen(
 				}
 				is TripState.Error -> {
 					Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-						Text("Error: ${state.message}")
+						Column(horizontalAlignment = Alignment.CenterHorizontally) {
+							Text(
+								"Unable to load trips",
+								style = MaterialTheme.typography.titleMedium,
+								color = MaterialTheme.colorScheme.error
+							)
+							Spacer(Modifier.height(8.dp))
+							Text(
+								state.message,
+								style = MaterialTheme.typography.bodyMedium,
+								color = MaterialTheme.colorScheme.onSurfaceVariant
+							)
+							Spacer(Modifier.height(16.dp))
+							Button(onClick = { tripViewModel.loadTrips() }) {
+								Text("Retry")
+							}
+						}
 					}
 				}
 				is TripState.Success -> {
-					if (state.trips.isEmpty()) {
+					// Filter trips for parents - only show trips where their children are included
+					val filteredTrips = if (currentUser?.role == "PARENT") {
+						state.trips.filter { trip -> 
+							trip.students.any { it.parentId == currentUser.id }
+						}
+					} else {
+						state.trips
+					}
+					
+					if (filteredTrips.isEmpty()) {
 						Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-							Text("No trips found")
+							Column(horizontalAlignment = Alignment.CenterHorizontally) {
+								Text(
+									"No trips found",
+									style = MaterialTheme.typography.titleLarge
+								)
+								Spacer(Modifier.height(8.dp))
+								Text(
+									"Trips for your children will appear here",
+									style = MaterialTheme.typography.bodyMedium,
+									color = MaterialTheme.colorScheme.onSurfaceVariant
+								)
+							}
 						}
 					} else {
 						LazyColumn(
 							modifier = Modifier.fillMaxSize().padding(16.dp),
 							verticalArrangement = Arrangement.spacedBy(12.dp)
 						) {
-							items(state.trips) { trip ->
+							items(filteredTrips) { trip ->
 								TripRow(
 									trip = trip,
 									onStart = { tripViewModel.startTrip(trip.id) },
@@ -80,7 +119,11 @@ fun TripListScreen(
 						}
 					}
 				}
-				else -> {}
+				else -> {
+					Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+						Text("No trips available")
+					}
+				}
 			}
 		}
 	}

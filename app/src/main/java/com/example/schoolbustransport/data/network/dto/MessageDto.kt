@@ -1,17 +1,16 @@
 package com.example.schoolbustransport.data.network.dto
 
-import com.google.firebase.firestore.ServerTimestamp
-import java.util.Date
-
 /**
  * Represents a single message. Now Firestore-compatible.
  */
 data class MessageDto(
+    val id: String = "",
     val senderId: String = "",
     val receiverId: String = "",
     val content: String = "",
     val type: String? = null, // 'chat' or 'notification'
-    @ServerTimestamp val timestamp: Date? = null, // Firestore will automatically populate this
+    val timestamp: com.google.firebase.Timestamp? = null, // Use Firestore Timestamp
+    val read: Boolean = false,
     // The sender/receiver info can be fetched separately from the 'users' collection if needed
     // For simplicity in the message object, we will omit the nested UserInfo for now.
     val sender: UserInfo? = null,

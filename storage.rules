@@ -1,0 +1,25 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Trip reports - allow authenticated users to read
+    match /trip-reports/{tripId}.pdf {
+      // All authenticated users can read trip reports
+      allow read: if request.auth != null;
+      // Only Cloud Functions can write (they use admin SDK)
+      allow write: if false;
+    }
+    
+    // Profile images - allow users to upload and read
+    match /profile-images/{userId}/{allPaths=**} {
+      // All authenticated users can read any profile image
+      allow read: if request.auth != null;
+      // Users can upload/update/delete their own profile image
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Allow any other files for authenticated users (for future use)
+    match /{allPaths=**} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}

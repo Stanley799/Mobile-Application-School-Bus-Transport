@@ -50,7 +50,7 @@ class StudentsViewModel @Inject constructor(
         }
     }
 
-    fun createStudent(name: String, school: String, grade: String) {
+    fun createStudent(name: String, age: Int, gender: String, grade: String, homeLocation: String) {
         viewModelScope.launch {
             _isLoading.value = true
             _error.value = null
@@ -58,14 +58,16 @@ class StudentsViewModel @Inject constructor(
                 val userId = auth.currentUser?.uid ?: throw IllegalStateException("User not logged in")
                 val student = Student(
                     name = name,
-                    school = school,
+                    age = age,
+                    gender = gender,
                     grade = grade,
+                    homeLocation = homeLocation,
                     parentId = userId
                 )
                 firestore.collection("students").add(student).await()
-                loadMyStudents() // Refresh list
+                // Don't refresh list here - let the success dialog handle it
             } catch (e: Exception) {
-                _error.value = e.message
+                _error.value = "Failed to add student: ${e.message ?: "Unknown error"}"
             } finally {
                 _isLoading.value = false
             }

@@ -34,9 +34,12 @@ fun ChatScreen(
     authViewModel: AuthViewModel = hiltViewModel()
 ) {
     val user by authViewModel.loginState.collectAsState()
+    val otherUserId = conversationId ?: ""
 
-    LaunchedEffect(conversationId) {
-        conversationId?.let { vm.loadMessages(it) }
+    LaunchedEffect(otherUserId) {
+        if (otherUserId.isNotBlank()) {
+            vm.loadMessages(otherUserId)
+        }
     }
 
     val messages by vm.messages.collectAsState()
@@ -58,8 +61,8 @@ fun ChatScreen(
         bottomBar = {
             MessageInput(userRole = (user as? com.example.schoolbustransport.presentation.auth.LoginState.Success)?.user?.userRole, onSendMessage = {
                 text, isNotification ->
-                if (conversationId != null) {
-                    vm.sendMessage(conversationId, text, if (isNotification) "notification" else "chat")
+                if (otherUserId.isNotBlank()) {
+                    vm.sendMessage(otherUserId, text, if (isNotification) "notification" else "chat")
                 }
             })
         }
@@ -67,34 +70,50 @@ fun ChatScreen(
         Column(modifier = Modifier.padding(paddingValues).fillMaxSize()) {
             if (loading) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
             if (!error.isNullOrBlank()) Text(error!!, color = MaterialTheme.colorScheme.error)
-            LazyColumn(
-                modifier = Modifier.weight(1f).fillMaxWidth(),
-                contentPadding = PaddingValues(8.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-                reverseLayout = true
-            ) {
-                items(messages.reversed()) { m ->
-                    val isFromMe = m.senderId == myUserId
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
-                        horizontalArrangement = if (isFromMe) Arrangement.End else Arrangement.Start,
-                        verticalAlignment = Alignment.Bottom
-                    ) {
-                        if (!isFromMe) {
-                            AvatarBubble(m.sender?.name ?: "", MaterialTheme.colorScheme.secondary)
-                            Spacer(modifier = Modifier.width(6.dp))
+            if (otherUserId.isBlank()) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text("Invalid conversation", color = MaterialTheme.colorScheme.error)
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.weight(1f).fillMaxWidth(),
+                    contentPadding = PaddingValues(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                    reverseLayout = true
+                ) {
+                    items(messages.reversed()) { m ->
+                        val isFromMe = m.senderId == myUserId
+                        val timestampStr = if (m.timestamp != null) {
+                            try {
+                                val date = m.timestamp.toDate()
+                                java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).format(date)
+                            } catch (e: Exception) {
+                                ""
+                            }
+                        } else {
+                            ""
                         }
-                        MessageBubble(
-                            text = m.content,
-                            isFromMe = isFromMe,
-                            timestamp = m.timestamp?.toString() ?: "",
-                            senderName = m.sender?.name ?: "Me",
-                            isLast = m == messages.lastOrNull(),
-                            status = if (isFromMe) "Sent" else "Received"
-                        )
-                        if (isFromMe) {
-                            Spacer(modifier = Modifier.width(6.dp))
-                            AvatarBubble("Me", MaterialTheme.colorScheme.primary)
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+                            horizontalArrangement = if (isFromMe) Arrangement.End else Arrangement.Start,
+                            verticalAlignment = Alignment.Bottom
+                        ) {
+                            if (!isFromMe) {
+                                AvatarBubble(m.sender?.name ?: "U", MaterialTheme.colorScheme.secondary)
+                                Spacer(modifier = Modifier.width(6.dp))
+                            }
+                            MessageBubble(
+                                text = m.content,
+                                isFromMe = isFromMe,
+                                timestamp = timestampStr,
+                                senderName = m.sender?.name ?: "User",
+                                isLast = m == messages.lastOrNull(),
+                                status = if (isFromMe) "Sent" else "Received"
+                            )
+                            if (isFromMe) {
+                                Spacer(modifier = Modifier.width(6.dp))
+                                AvatarBubble("Me", MaterialTheme.colorScheme.primary)
+                            }
                         }
                     }
                 }
