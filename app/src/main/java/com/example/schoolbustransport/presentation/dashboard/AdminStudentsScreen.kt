@@ -1,5 +1,9 @@
+
+// AdminStudentsScreen: Allows admin to view and filter students by grade, and see parent details.
 package com.example.schoolbustransport.presentation.dashboard
 
+
+// Compose, Firebase, and project imports for UI, state, and Firestore access
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -19,9 +23,12 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ktx.toObjects
 import kotlinx.coroutines.tasks.await
 
+
+// Main composable for the admin students screen
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AdminStudentsScreen(navController: NavController) {
+    // List of grades for filtering
     val grades = listOf("Grade5", "Grade6", "Grade7", "Grade8", "Grade9")
     var selectedGrade by remember { mutableStateOf<String?>(null) }
     val firestore = remember { FirebaseFirestore.getInstance() }
@@ -30,6 +37,7 @@ fun AdminStudentsScreen(navController: NavController) {
     val loading = remember { mutableStateOf(false) }
     val error = remember { mutableStateOf<String?>(null) }
 
+    // Load students and parent details when grade changes
     LaunchedEffect(selectedGrade) {
         loading.value = true
         error.value = null
@@ -43,8 +51,8 @@ fun AdminStudentsScreen(navController: NavController) {
                 firestore.collection("students").get().await()
             }
             students.value = query.toObjects(Student::class.java)
-            
-            // Load parent details
+
+            // Load parent details for each student
             val parentIds = students.value.mapNotNull { it.parentId }.distinct()
             val parentMap = mutableMapOf<String, com.example.schoolbustransport.domain.model.User>()
             parentIds.forEach { parentId ->
@@ -82,7 +90,7 @@ fun AdminStudentsScreen(navController: NavController) {
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            // Grade filter buttons
+            // Grade filter chips
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -103,6 +111,7 @@ fun AdminStudentsScreen(navController: NavController) {
                 }
             }
 
+            // Show error if any
             if (error.value != null) {
                 Card(
                     modifier = Modifier
@@ -118,6 +127,7 @@ fun AdminStudentsScreen(navController: NavController) {
                 }
             }
 
+            // Show loading indicator or student list
             if (loading.value && students.value.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator()
@@ -144,6 +154,8 @@ fun AdminStudentsScreen(navController: NavController) {
     }
 }
 
+
+// Card showing student details and their parent info
 @Composable
 fun StudentCardWithParent(student: Student, parent: com.example.schoolbustransport.domain.model.User?) {
     Card(

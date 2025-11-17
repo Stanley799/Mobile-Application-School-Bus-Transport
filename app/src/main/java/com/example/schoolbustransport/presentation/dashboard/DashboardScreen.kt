@@ -1,5 +1,9 @@
+
+// DashboardScreen: Main landing page for users, showing trips, quick actions, and personalized content.
 package com.example.schoolbustransport.presentation.dashboard
 
+
+// Compose, Android, and project imports for UI, state, navigation, and theming
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
@@ -39,12 +43,15 @@ import com.example.schoolbustransport.domain.model.UserRole
 import com.example.schoolbustransport.presentation.trip.TripViewModel
 import com.example.schoolbustransport.ui.theme.SchoolBusTransportTheme
 
+
+// Main composable for the dashboard screen
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DashboardScreen(
     user: User,
     navController: NavController
 ) {
+    // ViewModel for trip data
     val tripViewModel: TripViewModel = hiltViewModel()
     val tripState by tripViewModel.tripState.collectAsState()
     var searchText by remember { mutableStateOf("") }
@@ -52,6 +59,7 @@ fun DashboardScreen(
     SchoolBusTransportTheme {
         Scaffold(
             topBar = {
+                // App bar with welcome and profile
                 TopAppBar(
                     title = {
                         Column {
@@ -80,11 +88,14 @@ fun DashboardScreen(
                     .verticalScroll(rememberScrollState())
                     .padding(16.dp)
             ) {
+                // Extract trips from state
                 val trips = (tripState as? com.example.schoolbustransport.presentation.trip.TripState.Success)?.trips ?: emptyList()
+                // Find current and upcoming trips
                 val currentTrip = trips.firstOrNull { it.status == TripStatus.IN_PROGRESS }
                     ?: trips.sortedByDescending { it.startTime }.firstOrNull() // Show latest trip if no active trip
                 val upcomingTrips = trips.filter { it.status == TripStatus.SCHEDULED }
 
+                // Show current trip card
                 if (currentTrip != null) {
                     CurrentTripCard(trip = currentTrip)
                 } else {
@@ -92,6 +103,7 @@ fun DashboardScreen(
                 }
                 Spacer(modifier = Modifier.height(24.dp))
 
+                // Search field for routes, schedules, or bus stops
                 OutlinedTextField(
                     value = searchText,
                     onValueChange = { searchText = it },
@@ -103,18 +115,21 @@ fun DashboardScreen(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
+                // Section for user-specific actions
                 Text("My Space", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.height(16.dp))
-                
-                // Role-specific tasks
+
+                // Show role-specific quick actions
                 MySpaceSection(user = user, navController = navController, trips = trips)
 
                 Spacer(modifier = Modifier.height(24.dp))
 
+                // Upcoming trips card
                 UpcomingTripsCard(upcomingTrips, modifier = Modifier.fillMaxWidth())
 
                 Spacer(modifier = Modifier.height(24.dp))
 
+                // Quick action cards for live tracking and notifications
                 Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                     ActionCard(
                         title = "Live Tracking",
@@ -132,12 +147,15 @@ fun DashboardScreen(
                 }
                 Spacer(modifier = Modifier.height(24.dp))
 
+                // Personalized trip schedule section
                 PersonalizedTripsSection(user = user, trips = trips)
             }
         }
     }
 }
 
+
+// Shows the user's profile avatar or a placeholder
 @Composable
 fun ProfileAvatar(imageUrl: String?, onClick: () -> Unit) {
     Box(
@@ -165,6 +183,8 @@ fun ProfileAvatar(imageUrl: String?, onClick: () -> Unit) {
     }
 }
 
+
+// Card displaying the current trip details, or a placeholder if none
 @Composable
 fun CurrentTripCard(trip: Trip?) {
     Card(
@@ -203,10 +223,11 @@ fun CurrentTripCard(trip: Trip?) {
     }
 }
 
+
+// Shows quick actions for the user's role (parent, admin, driver)
 @Composable
 fun MySpaceSection(user: User, navController: NavController, trips: List<Trip>) {
     val userRole = UserRole.fromString(user.role)
-    
     when (userRole) {
         is UserRole.Parent -> {
             ParentSpaceSection(navController = navController)
@@ -220,6 +241,8 @@ fun MySpaceSection(user: User, navController: NavController, trips: List<Trip>) 
     }
 }
 
+
+// Quick actions for parents
 @Composable
 fun ParentSpaceSection(navController: NavController) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -246,6 +269,8 @@ fun ParentSpaceSection(navController: NavController) {
     }
 }
 
+
+// Quick actions for admins
 @Composable
 fun AdminSpaceSection(navController: NavController) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -277,6 +302,8 @@ fun AdminSpaceSection(navController: NavController) {
     }
 }
 
+
+// Quick actions for drivers
 @Composable
 fun DriverSpaceSection(navController: NavController, trips: List<Trip>) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -293,6 +320,8 @@ fun DriverSpaceSection(navController: NavController, trips: List<Trip>) {
     }
 }
 
+
+// Card for a single quick action in MySpaceSection
 @Composable
 fun MySpaceCard(title: String, icon: androidx.compose.ui.graphics.vector.ImageVector, onClick: () -> Unit) {
     Card(
@@ -313,6 +342,8 @@ fun MySpaceCard(title: String, icon: androidx.compose.ui.graphics.vector.ImageVe
     }
 }
 
+
+// Card for showing bus status (currently static content)
 @Composable
 fun BusStatusCard(index: Int) {
     val colors = listOf(
@@ -333,6 +364,8 @@ fun BusStatusCard(index: Int) {
     }
 }
 
+
+// Card showing a summary of upcoming trips
 @Composable
 fun UpcomingTripsCard(trips: List<Trip>, modifier: Modifier = Modifier) {
     Card(
@@ -363,6 +396,8 @@ fun UpcomingTripsCard(trips: List<Trip>, modifier: Modifier = Modifier) {
     }
 }
 
+
+// Card for a dashboard action (e.g., live tracking, notifications)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ActionCard(title: String, subtitle: String, modifier: Modifier = Modifier, isPrimary: Boolean = true, onClick: () -> Unit) {
@@ -375,6 +410,8 @@ fun ActionCard(title: String, subtitle: String, modifier: Modifier = Modifier, i
     }
 }
 
+
+// Bottom navigation bar for dashboard
 @Composable
 fun BottomNavigationBar(navController: NavController, user: User) {
     NavigationBar {
@@ -401,6 +438,8 @@ fun BottomNavigationBar(navController: NavController, user: User) {
     }
 }
 
+
+// Section showing personalized trip schedule for the user
 @Composable
 fun PersonalizedTripsSection(user: User, trips: List<Trip>) {
     val filteredTrips = when (UserRole.fromString(user.role)) {
@@ -444,6 +483,8 @@ fun PersonalizedTripsSection(user: User, trips: List<Trip>) {
     }
 }
 
+
+// Banner for showing in-app notifications (not always used)
 @Composable
 fun NotificationBanner(
     message: String?,
@@ -468,6 +509,8 @@ fun NotificationBanner(
     }
 }
 
+
+// Utility for showing heads-up notifications (used for important alerts)
 private fun showHeadsUpNotification(context: Context, title: String, text: String) {
     val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
     val channelId = "heads_up_channel"

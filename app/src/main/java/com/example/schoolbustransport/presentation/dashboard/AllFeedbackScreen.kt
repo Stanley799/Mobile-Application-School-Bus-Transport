@@ -1,5 +1,9 @@
+
+// AllFeedbackScreen: Displays all trip feedback for admin review, with search and filtering.
 package com.example.schoolbustransport.presentation.dashboard
 
+
+// Compose and project imports for UI, state, and feedback model
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -17,19 +21,24 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.schoolbustransport.domain.model.TripFeedback
 
+
+// Main composable for viewing all trip feedback
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AllFeedbackScreen(
     viewModel: FeedbackAnalyticsViewModel = hiltViewModel(),
     onBack: () -> Unit = {}
 ) {
+    // Collect feedbacks and search query state
     val feedbacks by viewModel.feedbacks.collectAsState()
     var searchQuery by remember { mutableStateOf(TextFieldValue()) }
+    // Filter feedbacks by comment, parent, or student name
     val filtered = feedbacks.filter {
         (it.comment?.contains(searchQuery.text, ignoreCase = true) == true) ||
         (it.parentName?.contains(searchQuery.text, ignoreCase = true) == true) ||
         (it.studentName?.contains(searchQuery.text, ignoreCase = true) == true)
     }
+    // Load all feedback on first composition
     LaunchedEffect(Unit) { viewModel.loadAllFeedback() }
 
     Scaffold(
@@ -45,6 +54,7 @@ fun AllFeedbackScreen(
         }
     ) { padding ->
         Column(modifier = Modifier.padding(padding).fillMaxSize().padding(16.dp)) {
+            // Search field for filtering feedback
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
@@ -54,6 +64,7 @@ fun AllFeedbackScreen(
                 singleLine = true
             )
             Spacer(modifier = Modifier.height(16.dp))
+            // Show feedback list or empty state
             if (filtered.isEmpty()) {
                 Text("No feedback found.", color = Color.Gray)
             } else {
@@ -67,6 +78,8 @@ fun AllFeedbackScreen(
     }
 }
 
+
+// Card for displaying a single feedback item
 @Composable
 private fun FeedbackListItem(feedback: TripFeedback) {
     Card(

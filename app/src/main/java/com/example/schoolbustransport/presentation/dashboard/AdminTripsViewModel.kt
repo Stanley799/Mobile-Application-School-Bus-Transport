@@ -1,5 +1,9 @@
+
+// AdminTripsViewModel: Handles loading and creating trips for the admin panel.
 package com.example.schoolbustransport.presentation.dashboard
 
+
+// AndroidX, Firebase, and project imports for ViewModel, state, and Firestore
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.schoolbustransport.domain.model.Bus
@@ -15,11 +19,13 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 
+
 @HiltViewModel
 class AdminTripsViewModel @Inject constructor(
     private val firestore: FirebaseFirestore
 ) : ViewModel() {
 
+    // State for buses, routes, drivers, loading, and error
     private val _buses = MutableStateFlow<List<Bus>>(emptyList())
     val buses: StateFlow<List<Bus>> = _buses
 
@@ -35,6 +41,7 @@ class AdminTripsViewModel @Inject constructor(
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error
 
+    // Loads all buses, routes, and drivers from Firestore
     fun loadLists() {
         viewModelScope.launch {
             _isLoading.value = true
@@ -56,6 +63,7 @@ class AdminTripsViewModel @Inject constructor(
         }
     }
 
+    // Creates a new trip in Firestore with the selected bus, route, and driver
     fun createTrip(bus: Bus, route: Route, driver: User, tripName: String) {
         viewModelScope.launch {
             _isLoading.value = true
